@@ -23,6 +23,7 @@ from PySide6.QtCore import Qt, QThread, QTimer, Signal, QObject, QMutex
 from PySide6.QtGui import QFont, QIcon, QPalette, QColor, QPixmap
 
 from .config import ConfigManager, DeviceDetector, ModelDetector
+from .shortcut_recorder import ShortcutRecorderDialog
 
 
 class ModelDownloadThread(QThread):
@@ -656,8 +657,14 @@ class SettingsWidget(QWidget):
         audio_layout = QGridLayout(audio_group)
         
         audio_layout.addWidget(QLabel("Hotkey:"), 0, 0)
+        hotkey_container = QHBoxLayout()
         self.hotkey_edit = QLineEdit()
-        audio_layout.addWidget(self.hotkey_edit, 0, 1)
+        self.record_hotkey_btn = QPushButton("📹 Record")
+        self.record_hotkey_btn.setMaximumWidth(80)
+        self.record_hotkey_btn.clicked.connect(self.open_shortcut_recorder)
+        hotkey_container.addWidget(self.hotkey_edit)
+        hotkey_container.addWidget(self.record_hotkey_btn)
+        audio_layout.addLayout(hotkey_container, 0, 1)
         
         audio_layout.addWidget(QLabel("Output Directory:"), 1, 0)
         self.output_dir_edit = QLineEdit()
@@ -768,6 +775,14 @@ class SettingsWidget(QWidget):
             QMessageBox.information(self, "Settings", "Settings saved successfully!")
         else:
             QMessageBox.warning(self, "Settings", "Failed to save settings!")
+    
+    def open_shortcut_recorder(self):
+        """Open the shortcut recorder dialog."""
+        dialog = ShortcutRecorderDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            recorded_shortcut = dialog.get_recorded_shortcut()
+            if recorded_shortcut:
+                self.hotkey_edit.setText(recorded_shortcut)
     
     def reset_settings(self) -> None:
         """Reset settings to defaults."""
