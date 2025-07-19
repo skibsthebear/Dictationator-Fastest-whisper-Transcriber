@@ -144,7 +144,7 @@ class AudioProcessor:
     are created in the specified directory.
     """
     
-    def __init__(self, model_size: str = "base", watch_directory: str = "outputs", auto_paste: bool = True):
+    def __init__(self, model_size: str = "base", watch_directory: str = "outputs", auto_paste: bool = True, enable_file_monitoring: bool = True):
         """
         Initialize the audio processor.
         
@@ -152,10 +152,12 @@ class AudioProcessor:
             model_size: Size of the Whisper model to use (tiny, base, small, medium, large).
             watch_directory: Directory to monitor for new audio files.
             auto_paste: Whether to automatically paste transcribed text to clipboard.
+            enable_file_monitoring: Whether to enable file system monitoring (default: True).
         """
         self.model_size = model_size
         self.watch_directory = Path(watch_directory)
         self.auto_paste = auto_paste
+        self.enable_file_monitoring = enable_file_monitoring
         self.logger = self._setup_logging()
         
         self.logger.info(f"[PROCESSOR] Initializing AudioProcessor")
@@ -176,10 +178,16 @@ class AudioProcessor:
             self.logger.error(f"[PROCESSOR] Failed to load Whisper model: {e}")
             raise
         
-        # Set up file monitoring
-        self.observer = Observer()
-        self.file_handler = AudioFileHandler(self)
-        self._monitoring = False
+        # Set up file monitoring (only if enabled)
+        if self.enable_file_monitoring:
+            self.observer = Observer()
+            self.file_handler = AudioFileHandler(self)
+            self._monitoring = False
+        else:
+            self.observer = None
+            self.file_handler = None
+            self._monitoring = False
+            self.logger.info("[PROCESSOR] File monitoring disabled - using direct transcription mode only")
         
         # Initialize ClipboardPaster if auto-paste is enabled and available
         self.paster = None
@@ -308,6 +316,10 @@ class AudioProcessor:
         """
         Start monitoring the watch directory for new audio files.
         """
+        if not self.enable_file_monitoring:
+            self.logger.warning("[PROCESSOR] File monitoring is disabled for this AudioProcessor instance")
+            return
+            
         if self._monitoring:
             self.logger.warning("[PROCESSOR] Monitoring already active")
             return
@@ -371,8 +383,8 @@ class AudioProcessor:
         """
         Stop monitoring and cleanup resources.
         """
-        if not self._monitoring:
-            self.logger.info("[PROCESSOR] Monitoring not active")
+        if not self.enable_file_monitoring or not self._monitoring:
+            self.logger.info("[PROCESSOR] Monitoring not active or disabled")
             return
         
         self.logger.info("[PROCESSOR] Stopping file monitoring")

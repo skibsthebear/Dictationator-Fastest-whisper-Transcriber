@@ -111,9 +111,9 @@ class AudioRecorder:
                 self.logger.info(f"[AUDIO] Watch directory: {output_dir}")
                 print(f"[DEBUG] Watch directory: {output_dir}")
                 
-                # Create processor instance but DON'T start monitoring
+                # Create processor instance with file monitoring DISABLED
                 # We'll use direct transcription calls instead to avoid dual processing
-                self.processor = AudioProcessor(model_size=model_size, watch_directory=output_dir, auto_paste=self.auto_paste)
+                self.processor = AudioProcessor(model_size=model_size, watch_directory=output_dir, auto_paste=self.auto_paste, enable_file_monitoring=False)
                 self.logger.info("[AUDIO] AudioProcessor created successfully")
                 print("[DEBUG] AudioProcessor created successfully")
                 self.logger.info("[AUDIO] Using direct transcription mode (no file monitoring)")
