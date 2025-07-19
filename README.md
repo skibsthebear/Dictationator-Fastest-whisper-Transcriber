@@ -1,5 +1,9 @@
 # 🎤 Dictationer - Advanced Voice Recording & Transcription System
 
+<div align="center">
+  <img src="logo.png" alt="Dictationer Logo" width="200" height="200">
+</div>
+
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)

@@ -24,6 +24,13 @@ except ImportError as e:
     PASTER_AVAILABLE = False
     _paster_import_error = str(e)
 
+# Import status indicator
+try:
+    from .status_indicator import show_transcribing, hide_indicator
+    STATUS_INDICATOR_AVAILABLE = True
+except ImportError:
+    STATUS_INDICATOR_AVAILABLE = False
+
 
 class AudioFileHandler(FileSystemEventHandler):
     """
@@ -207,6 +214,14 @@ class AudioProcessor:
         """
         self.logger.info(f"[PROCESSOR] Starting transcription: {file_path}")
         
+        # Show transcribing indicator
+        if STATUS_INDICATOR_AVAILABLE:
+            try:
+                show_transcribing()
+                self.logger.info("[PROCESSOR] Transcribing indicator shown")
+            except Exception as e:
+                self.logger.error(f"[PROCESSOR] Failed to show transcribing indicator: {e}")
+        
         try:
             # Verify file exists and is readable
             if not os.path.exists(file_path):
@@ -280,6 +295,14 @@ class AudioProcessor:
             self.logger.error(f"[PROCESSOR] Transcription failed for {file_path}: {e}")
             print(f"\nERROR: Failed to transcribe {Path(file_path).name}: {e}\n")
             return None
+        finally:
+            # Hide indicator when done
+            if STATUS_INDICATOR_AVAILABLE:
+                try:
+                    hide_indicator()
+                    self.logger.info("[PROCESSOR] Transcribing indicator hidden")
+                except Exception as e:
+                    self.logger.error(f"[PROCESSOR] Failed to hide transcribing indicator: {e}")
     
     def start_monitoring(self):
         """

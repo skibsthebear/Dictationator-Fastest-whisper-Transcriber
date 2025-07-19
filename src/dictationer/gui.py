@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
     QSpacerItem, QSizePolicy, QFrame, QDialog
 )
 from PySide6.QtCore import Qt, QThread, QTimer, Signal, QObject, QMutex
-from PySide6.QtGui import QFont, QIcon, QPalette, QColor
+from PySide6.QtGui import QFont, QIcon, QPalette, QColor, QPixmap
 
 from .config import ConfigManager, DeviceDetector, ModelDetector
 
@@ -478,6 +478,25 @@ class SettingsWidget(QWidget):
         """Set up the settings user interface."""
         layout = QVBoxLayout(self)
         
+        # Warning message at the top
+        warning_label = QLabel("⚠️ Make sure to turn on the program from control mode! This is intentional so that you don't waste system resources.")
+        warning_label.setStyleSheet("""
+            QLabel {
+                color: #ff0000;
+                font-weight: bold;
+                font-size: 14px;
+                padding: 10px;
+                background-color: #ffeeee;
+                border: 2px solid #ff0000;
+                border-radius: 5px;
+            }
+        """)
+        warning_label.setWordWrap(True)
+        layout.addWidget(warning_label)
+        
+        # Add some spacing after the warning
+        layout.addSpacing(10)
+        
         # Device Settings Group
         device_group = QGroupBox("Device Settings")
         device_layout = QGridLayout(device_group)
@@ -653,6 +672,45 @@ class SettingsWidget(QWidget):
         
         button_layout.addStretch()
         layout.addLayout(button_layout)
+        
+        # Connect auto-save signals for all settings controls
+        self.device_combo.currentTextChanged.connect(self.auto_save_settings)
+        self.cached_model_combo.currentTextChanged.connect(self.auto_save_settings)
+        self.hotkey_edit.textChanged.connect(self.auto_save_settings)
+        self.output_dir_edit.textChanged.connect(self.auto_save_settings)
+    
+    def auto_save_settings(self):
+        """Automatically save settings when any control changes."""
+        # Use a timer to debounce rapid changes (like typing)
+        if not hasattr(self, '_auto_save_timer'):
+            self._auto_save_timer = QTimer()
+            self._auto_save_timer.setSingleShot(True)
+            self._auto_save_timer.timeout.connect(self._perform_auto_save)
+        
+        # Restart the timer (500ms delay to avoid saving on every keystroke)
+        self._auto_save_timer.start(500)
+    
+    def _perform_auto_save(self):
+        """Perform the actual auto-save operation."""
+        self.config_manager.set("device_preference", self.device_combo.currentText())
+        self.config_manager.set("whisper_model_size", self.cached_model_combo.currentText())
+        self.config_manager.set("hotkey", self.hotkey_edit.text())
+        self.config_manager.set("output_directory", self.output_dir_edit.text())
+        # Always enable transcription and auto-paste - that's the core functionality
+        self.config_manager.set("enable_transcription", True)
+        self.config_manager.set("auto_paste", True)
+        
+        # Save config silently (no popup messages)
+        success = self.config_manager.save_config()
+        
+        # Update status bar to show auto-save feedback
+        main_window = self.window()  # Get the top-level window
+        if hasattr(main_window, 'statusBar'):
+            status_bar = main_window.statusBar()
+            if success:
+                status_bar.showMessage("✓ Settings auto-saved", 2000)  # Show for 2 seconds
+            else:
+                status_bar.showMessage("⚠ Auto-save failed", 3000)  # Show for 3 seconds
     
     def load_settings(self) -> None:
         """Load current settings into the UI."""
@@ -679,7 +737,7 @@ class SettingsWidget(QWidget):
         self.update_gpu_button()
     
     def save_settings(self) -> None:
-        """Save current UI settings to configuration."""
+        """Manually save current UI settings to configuration."""
         self.config_manager.set("device_preference", self.device_combo.currentText())
         self.config_manager.set("whisper_model_size", self.cached_model_combo.currentText())
         self.config_manager.set("hotkey", self.hotkey_edit.text())
@@ -1034,6 +1092,15 @@ class DictationerGUI(QMainWindow):
         self.setWindowTitle("Dictationer - Voice Recording System")
         self.setMinimumSize(800, 600)
         self.resize(1000, 700)
+        
+        # Set window icon
+        try:
+            import os
+            logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logo.png")
+            if os.path.exists(logo_path):
+                self.setWindowIcon(QIcon(logo_path))
+        except Exception:
+            pass  # Silently fail if logo is not found
         
         # Central widget with tabs
         central_widget = QWidget()

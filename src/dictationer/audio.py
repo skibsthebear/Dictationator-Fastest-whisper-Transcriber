@@ -13,6 +13,14 @@ import logging
 from typing import Optional
 import os
 
+# Import status indicator
+try:
+    from .status_indicator import show_recording, show_transcribing, hide_indicator
+    STATUS_INDICATOR_AVAILABLE = True
+except ImportError as e:
+    STATUS_INDICATOR_AVAILABLE = False
+    print(f"[DEBUG] Status indicator not available: {e}")
+
 # Import AudioProcessor for automatic transcription
 try:
     from .processor import AudioProcessor
@@ -152,6 +160,14 @@ class AudioRecorder:
             self._thread.start()
             self.logger.info(f"[AUDIO] Recording thread started with ID: {self._thread.ident}")
             print(f"Recording started... Output will be saved to {self.output_file}")
+            
+            # Show recording indicator
+            if STATUS_INDICATOR_AVAILABLE:
+                try:
+                    show_recording()
+                    self.logger.info("[AUDIO] Recording indicator shown")
+                except Exception as e:
+                    self.logger.error(f"[AUDIO] Failed to show recording indicator: {e}")
     
     def stop_recording(self):
         """Stop recording and save to file."""
@@ -179,6 +195,14 @@ class AudioRecorder:
             self._save_recording()
             print(f"Recording stopped and saved to {self.output_file}")
             self.logger.info("[AUDIO] Recording stop process complete")
+            
+            # Hide recording indicator, will show transcribing if needed
+            if STATUS_INDICATOR_AVAILABLE:
+                try:
+                    hide_indicator()
+                    self.logger.info("[AUDIO] Recording indicator hidden")
+                except Exception as e:
+                    self.logger.error(f"[AUDIO] Failed to hide recording indicator: {e}")
     
     def _record(self):
         """
