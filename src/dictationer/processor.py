@@ -415,53 +415,7 @@ class AudioProcessor:
         self.logger.info(f"[PROCESSOR] Loading Whisper model: {original_model_name}")
         self.logger.info(f"[PROCESSOR] Device config: {device_config}")
         
-        # COMMENTED OUT: Original loading strategies (preserved for reference)
-        # try:
-        #     # Detect model type
-        #     if "/" in model_size:
-        #         # HuggingFace model (e.g., "distil-whisper/distil-large-v3.5")
-        #         self.logger.info(f"[PROCESSOR] Detected HuggingFace model: {model_size}")
-        #
-        #         # Check if model is cached
-        #         try:
-        #             from .config import ModelDetector
-        #             is_cached = ModelDetector.is_model_cached(model_size)
-        #             self.logger.info(f"[PROCESSOR] HuggingFace model cached: {is_cached}")
-        #             if not is_cached:
-        #                 self.logger.warning(f"[PROCESSOR] Model '{model_size}' may not be downloaded")
-        #         except ImportError:
-        #             self.logger.warning("[PROCESSOR] ModelDetector not available for cache check")
-        #
-        #         # Try different loading strategies for HF models
-        #         loading_strategies = [
-        #             {"device": "cpu", "compute_type": "int8", "local_files_only": False},
-        #             {"device": "cpu", "compute_type": "float32", "local_files_only": False},
-        #             {"device": "cpu", "compute_type": "int8", "local_files_only": True},
-        #             {"device": "cpu", "compute_type": "float32", "local_files_only": True},
-        #         ]
-        #
-        #         last_error = None
-        #         for i, strategy in enumerate(loading_strategies):
-        #             try:
-        #                 self.logger.info(f"[PROCESSOR] Trying loading strategy {i+1}: {strategy}")
-        #                 self.model = WhisperModel(model_size, **strategy)
-        #                 self.logger.info(f"[PROCESSOR] Successfully loaded with strategy {i+1}")
-        #                 self._log_model_info()
-        #                 return
-        #             except Exception as e:
-        #                 last_error = e
-        #                 self.logger.warning(f"[PROCESSOR] Strategy {i+1} failed: {e}")
-        #
-        #         # If all strategies failed, raise the last error
-        #         if last_error:
-        #             raise last_error
-        #
-        #     else:
-        #         # Standard faster-whisper model (e.g., "base", "large")
-        #         self.logger.info(f"[PROCESSOR] Detected standard model: {model_size}")
-        #         self.model = WhisperModel(model_size, device="cpu", compute_type="int8")
-        #         self.logger.info(f"[PROCESSOR] Standard model loaded successfully")
-        #         self._log_model_info()
+        
         
         # NEW GPU-AWARE LOADING IMPLEMENTATION
         try:

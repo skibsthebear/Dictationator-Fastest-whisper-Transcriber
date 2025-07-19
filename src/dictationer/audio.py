@@ -12,6 +12,8 @@ import time
 import logging
 from typing import Optional
 import os
+import tempfile
+import shutil
 
 # Import status indicator
 try:
@@ -393,17 +395,40 @@ class AudioRecorder:
             duration = len(self._frames) * self.chunk_size / self.sample_rate
             self.logger.info(f"[AUDIO] Recording duration: {duration:.2f} seconds")
             
-            # Open WAV file for writing
-            self.logger.info("[AUDIO] Opening WAV file for writing")
-            with wave.open(self.output_file, 'wb') as wf:
-                wf.setnchannels(self.channels)
-                wf.setsampwidth(pyaudio.get_sample_size(self.format))
-                wf.setframerate(self.sample_rate)
+            # Create temporary file in same directory as target
+            output_dir = os.path.dirname(self.output_file) if os.path.dirname(self.output_file) else '.'
+            temp_fd, temp_path = tempfile.mkstemp(suffix='.wav', dir=output_dir, prefix='temp_recording_')
+            self.logger.info(f"[AUDIO] Created temporary file: {temp_path}")
+            
+            try:
+                # Write to temporary file
+                self.logger.info("[AUDIO] Opening temporary WAV file for writing")
+                with os.fdopen(temp_fd, 'wb') as temp_file:
+                    with wave.open(temp_file, 'wb') as wf:
+                        wf.setnchannels(self.channels)
+                        wf.setsampwidth(pyaudio.get_sample_size(self.format))
+                        wf.setframerate(self.sample_rate)
+                        
+                        # Join and write frames
+                        audio_data = b''.join(self._frames)
+                        wf.writeframes(audio_data)
+                        self.logger.info(f"[AUDIO] Written {len(audio_data)} bytes to temporary WAV file")
                 
-                # Join and write frames
-                audio_data = b''.join(self._frames)
-                wf.writeframes(audio_data)
-                self.logger.info(f"[AUDIO] Written {len(audio_data)} bytes to WAV file")
+                # Now atomically move temp file to final location
+                self.logger.info(f"[AUDIO] Moving {temp_path} to {self.output_file}")
+                shutil.move(temp_path, self.output_file)
+                self.logger.info(f"[AUDIO] File moved successfully to: {self.output_file}")
+                
+            except Exception as e:
+                # Clean up temp file if something goes wrong
+                self.logger.error(f"[AUDIO] Error during file save: {e}")
+                if os.path.exists(temp_path):
+                    try:
+                        os.unlink(temp_path)
+                        self.logger.info(f"[AUDIO] Cleaned up temporary file: {temp_path}")
+                    except:
+                        pass
+                raise
             
             self.logger.info(f"[AUDIO] File saved successfully: {self.output_file}")
             print(f"Audio saved: {len(self._frames)} frames, approximately {duration:.2f} seconds")
