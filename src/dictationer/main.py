@@ -95,6 +95,7 @@ class RecordingController:
         try:
             # Keep main thread alive
             self.logger.info("[MAIN] Entering main loop")
+            self.logger.info("You can start dictation now!")
             while self._running:
                 time.sleep(0.5)  # Increased sleep for less CPU usage
         

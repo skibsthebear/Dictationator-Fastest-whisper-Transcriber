@@ -1,5 +1,7 @@
 # 🎤 Dictationer - Advanced Voice Recording & Transcription System
 
+**Effortlessly capture and transcribe your thoughts with intelligent voice recording and powerful AI.**
+
 <div align="center">
   <img src="logo.png" alt="Dictationer Logo" width="200" height="200">
 </div>
@@ -12,21 +14,24 @@ A professional voice recording system with **PySide6 GUI**, real-time transcript
 
 ## ✨ Key Features
 
-### 🎯 Core Functionality
-- **🖥️ Modern GUI Interface**: Beautiful PySide6 interface for easy configuration and control
-- **🔥 Hotkey Control**: Instantly toggle recording with customizable keyboard shortcuts
-- **🎵 High-Quality Audio**: Professional 16-bit depth, 16kHz sample rate WAV output
-- **🤖 Automatic Transcription**: Real-time speech-to-text using any HuggingFace Whisper model
-- **📋 Smart Paste**: Intelligent clipboard management with automatic text insertion
-- **🖱️ Start/Stop Controls**: GUI buttons for program control with real-time status
+### 🚀 Core Functionality
+- **🖥️ Modern GUI Interface**: Intuitive PySide6 interface for seamless configuration and control.
+- **🔥 Global Hotkey Support**: Instantly toggle recording with customizable keyboard shortcuts.
+- **🎵 High-Quality Audio Recording**: Professional WAV output (16-bit depth, 16kHz sample rate).
+- **🤖 Real-time Transcription**: Accurate speech-to-text powered by HuggingFace Whisper models.
+- **📋 Intelligent Text Pasting**: Automatic clipboard management and text insertion.
+- **🖱️ Program Controls**: GUI buttons for start/stop with real-time status indicators.
 
-### 🚀 Advanced Features
-- **⚡ Threaded Architecture**: Non-blocking operations with real-time status monitoring
-- **🛡️ Thread Safety**: Robust concurrent operation handling with proper locking
-- **📊 Comprehensive Logging**: Detailed debugging and monitoring capabilities
-- **🔄 Graceful Shutdown**: Clean handling of interrupts and system shutdown
-- **🎛️ Configurable Settings**: GUI-based configuration with automatic GPU detection
-- **📦 Model Management**: Download any HuggingFace Whisper model with progress tracking
+### ⚡ Advanced Capabilities
+- **💻 GPU/CUDA Acceleration**: Optimized performance with NVIDIA GPUs using float16 precision.
+- **🔄 Automatic Model Conversion**: Seamlessly converts HuggingFace PyTorch models to CTranslate2 format for faster-whisper compatibility.
+- **⚡ Optimized Distil-Whisper**: Integrates Distil-Whisper models with enhanced parameters (`beam_size=5`, `language='en'`, `condition_on_previous_text=False`) for improved accuracy and speed.
+- **⚙️ Smart Configuration**: GUI-based settings with automatic GPU detection and model management.
+- **⚡ Threaded Architecture**: Non-blocking operations and real-time status monitoring.
+- **🛡️ Thread Safety**: Robust concurrent operation handling with proper locking mechanisms.
+- **📊 Comprehensive Logging**: Detailed debugging and monitoring logs for issue diagnosis.
+- **🔄 Graceful Shutdown**: Clean handling of interrupts and system termination.
+- **📦 Model Management**: Download and manage any HuggingFace Whisper model directly from the GUI.
 
 
 ## 📦 Installation
@@ -50,26 +55,76 @@ pip install -r requirements.txt
 ./start_gui.bat    # Windows
 ./start_gui.sh     # Linux/macOS
 
+## ⌨️ Setting Up Your Hotkey (Important!)
 
+**⚠️ CRITICAL: The hotkey format must be EXACTLY correct or it won't work!**
+
+### Quick Setup Steps
+
+1. **Launch the GUI:**
+   ```bash
+   ./start_gui.bat    # Windows
+   ./start_gui.sh     # Linux/macOS
+   ```
+
+2. **Configure Your Hotkey:**
+   - Go to **Settings** tab
+   - Find **Audio Settings** → **Hotkey** field
+   - Enter your hotkey in the exact format: `ctrl+win+shift+l`
+
+3. **Format Requirements:**
+   - **Lowercase letters only**: `ctrl` not `Ctrl`
+   - **Plus signs with no spaces**: `ctrl+alt+r` not `ctrl + alt + r`
+   - **Use exact modifier names**: `ctrl`, `alt`, `shift`, `win`
+
+### ✅ Valid Examples
+```
+ctrl+win+shift+l     ✓ Default hotkey
+ctrl+alt+r           ✓ Simple combination  
+shift+f1             ✓ Function key combo
+ctrl+shift+space     ✓ With space key
+```
+
+### ❌ Common Mistakes
+```
+Ctrl+Win+Shift+L     ✗ Uppercase letters
+ctrl + alt + r       ✗ Spaces around plus signs
+control+alt+r        ✗ Wrong modifier name
+ctrl-alt-r           ✗ Wrong separator
+```
+
+### 🧪 Testing Your Hotkey
+After setting your hotkey in the GUI:
+1. Click **Start Program** button
+2. Try pressing your hotkey combination
+3. Look for "Recording state: ON/OFF" message in the log output
+4. If nothing happens, check the format and try again
+
+**💡 Tip**: The default `ctrl+win+shift+l` is tested to work reliably across platforms!
 
 ### 🔧 System Requirements
-At least a CPU that can handle the base small en whisper models.
-GPU with CUDA support changes the game.
+- **CPU**: Capable of running base or small Whisper models.
+- **GPU**: **Highly recommended** for optimal performance, especially with larger models. Supports NVIDIA GPUs with CUDA.
 
-#### Required Dependencies
+#### Core Dependencies
 ```bash
-# Core functionality
-pyaudio          # High-quality audio recording
-keyboard         # Global hotkey detection
-faster-whisper   # Advanced speech recognition
-watchdog         # File system monitoring
-pyperclip       # Intelligent clipboard management
+# Audio Recording & Processing
+pyaudio          # High-quality audio capture
+faster-whisper   # Advanced speech recognition engine
+watchdog         # File system event monitoring
 
-# GUI Dependencies
-PySide6          # Modern GUI framework
-python-dotenv    # Environment configuration
-transformers     # HuggingFace model support
-torch            # GPU acceleration (optional)
+# System & Utilities
+keyboard         # Global hotkey detection
+pyperclip       # Clipboard automation
+python-dotenv    # Environment variable management
+
+# GUI Framework (v1.1+)
+PySide6          # Modern GUI toolkit
+
+# AI & GPU Acceleration
+transformers     # HuggingFace model integration
+torch            # PyTorch for GPU support (install with CUDA)
+ctranslate2     # For optimized model inference
 ```
 
 #### Development Dependencies
@@ -142,6 +197,11 @@ python main.py  # Configure via GUI or config files
 We welcome contributions from the community! This project has huge potential and there are many exciting features we'd love to add:
 
 ### 🌟 High-Impact Contribution Ideas
+
+#### ⌨️ **Hotkey Recorder Widget**
+- **What**: Add a "Record Hotkey" button in GUI that captures key presses and auto-formats them correctly
+- **Why**: Current hotkey format is error-prone and causes silent failures for users
+- **Impact**: Eliminates the #1 setup frustration and improves user experience dramatically
 
 #### 🍎 **macOS Support & Testing**
 - **What**: Thorough testing and optimization for macOS users
@@ -396,30 +456,59 @@ hotkeys:
 
 ### ⌨️ Hotkey Configuration
 
+**⚠️ FORMAT CRITICAL**: The Python `keyboard` module is **very sensitive** to hotkey format. Even small deviations will cause complete failure!
+
+#### Required Format Rules
+
+1. **Lowercase only**: `ctrl`, `alt`, `shift`, `win` (never `Ctrl`, `Alt`, etc.)
+2. **No spaces around plus signs**: `ctrl+alt+r` (never `ctrl + alt + r`)
+3. **Exact modifier names**: `ctrl` not `control`, `win` not `windows`
+4. **Plus sign separator**: Use `+` only (never `-`, `_`, or spaces)
+
 #### Supported Keys
 - **Modifiers**: `ctrl`, `alt`, `shift`, `win`
-- **Letters**: `a-z`
+- **Letters**: `a-z` (lowercase only)
 - **Numbers**: `0-9`
 - **Function**: `f1-f12`
-- **Special**: `space`, `enter`, `esc`
+- **Special**: `space`, `enter`, `esc`, `tab`, `backspace`
 
 #### Hotkey Examples
 ```python
-# Common combinations
+# ✅ CORRECT - These will work
 "ctrl+shift+r"           # Ctrl + Shift + R
 "alt+f1"                 # Alt + F1
 "ctrl+win+shift+l"       # Ctrl + Win + Shift + L (default)
 "ctrl+alt+space"         # Ctrl + Alt + Space
+"shift+f10"              # Shift + F10
+"win+alt+d"              # Windows + Alt + D
 
-# Advanced combinations
-"ctrl+shift+f10"         # Function key combination
-"win+alt+d"              # Windows key combination
+# ❌ WRONG - These will fail silently
+"Ctrl+Shift+R"           # Uppercase modifiers
+"ctrl + shift + r"       # Spaces around plus signs
+"control+shift+r"        # Wrong modifier name
+"ctrl-shift-r"           # Wrong separator
+"CTRL+SHIFT+R"           # All uppercase
 ```
 
+#### Format Validation Tips
+
+1. **Test immediately**: After setting a hotkey, test it right away
+2. **Check logs**: Look for "Recording state: ON/OFF" messages when pressing keys
+3. **Use defaults first**: Try `ctrl+win+shift+l` to verify basic functionality
+4. **No silent failures**: The keyboard module won't warn you about invalid formats
+
 #### Platform Considerations
-- **Windows**: All combinations supported
+- **Windows**: All combinations supported (run as administrator for global hooks)
 - **Linux**: May require X11 permissions for global hooks
-- **macOS**: Requires accessibility permissions
+- **macOS**: Requires accessibility permissions for global keyboard access
+
+#### Troubleshooting Invalid Hotkeys
+
+If your hotkey doesn't work:
+1. **Check format exactly** against the rules above
+2. **Try the default**: `ctrl+win+shift+l` should always work
+3. **Look at logs**: No "Recording state" messages = bad format
+4. **Test modifiers**: Some combinations may conflict with system shortcuts
 
 ## 📊 Logging & Monitoring
 
@@ -615,6 +704,66 @@ sudo usermod -a -G input $USER
 # macOS - Grant accessibility permissions
 # System Preferences → Security & Privacy → Privacy → Accessibility
 # Add Terminal or your IDE to allowed applications
+```
+
+#### Hotkey Not Working / Not Responding
+```bash
+# Problem: Hotkey doesn't trigger recording, no response when pressed
+# Solution: Check format and test systematically
+
+# 1. Verify exact format in GUI settings
+# Open GUI → Settings → Audio Settings → Hotkey field
+# Should look exactly like: ctrl+win+shift+l
+
+# 2. Common format issues to check:
+echo "Checking common hotkey format problems..."
+
+# ❌ Wrong: Uppercase letters
+# "Ctrl+Win+Shift+L" 
+
+# ❌ Wrong: Spaces around plus signs  
+# "ctrl + win + shift + l"
+
+# ❌ Wrong: Different modifier names
+# "control+windows+shift+l"
+
+# ❌ Wrong: Different separators
+# "ctrl-win-shift-l" or "ctrl_win_shift_l"
+
+# ✅ Correct format:
+# "ctrl+win+shift+l"
+
+# 3. Test with known working hotkey
+# Set hotkey to exactly: ctrl+win+shift+l
+# This is the tested default that should work
+
+# 4. Check for conflicts with system shortcuts
+# Try a simple combination like: ctrl+alt+f1
+# Some complex combinations may conflict with OS hotkeys
+
+# 5. Verify program is running and listening
+# In GUI logs, look for:
+# "[KEYBOARD] Hotkey registered successfully"
+# "[KEYBOARD] Starting keyboard event loop"
+
+# 6. Test hotkey detection manually
+python -c "
+import keyboard
+print('Testing hotkey detection...')
+print('Press Ctrl+Alt+T to test (or your hotkey)')
+try:
+    keyboard.wait('ctrl+alt+t')
+    print('✅ Hotkey detected successfully!')
+    print('Your format is correct, check Dictationer settings')
+except Exception as e:
+    print(f'❌ Hotkey detection failed: {e}')
+    print('Check format and admin permissions')
+"
+
+# 7. Platform-specific debugging
+# Windows: Ensure running as administrator
+# Linux: Check X11 permissions and input group membership
+# macOS: Verify accessibility permissions granted
 ```
 
 #### Transcription Not Working
@@ -859,9 +1008,10 @@ We welcome contributions! Here's how to get started:
 
 ## 📚 Documentation
 
-- 🏗️ **[Architecture Guide](docs/PLANNING.md)** - System design and patterns
+- 🏗️ **[Architecture & PRD](docs/PLANNING.md)** - System design, requirements, and architecture overview
 - 📋 **[Task Management](docs/TASK.md)** - Project roadmap and tasks
 - 📖 **[API Reference](docs/API.md)** - Detailed API documentation
+- 🛠️ **[Development Guide](docs/DEVELOPMENT.md)** - Setup, standards, testing, and debugging
 
 ## 🆕 Changelog
 
