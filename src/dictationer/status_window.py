@@ -73,19 +73,30 @@ class StatusWindow(QWidget):
         if self.current_state == "hidden":
             return
         
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        # Safety checks
+        if not self.isVisible() or self.width() <= 0 or self.height() <= 0:
+            return
         
-        # Create rounded rectangle path
-        path = QPainterPath()
-        rect = QRect(0, 0, self.width(), self.height())
-        path.addRoundedRect(rect, 7, 7)
-        
-        # Fill with state color
-        color = self.colors.get(self.current_state, QColor(100, 100, 100, 230))
-        painter.fillPath(path, QBrush(color))
-        
-        painter.end()
+        try:
+            painter = QPainter(self)
+            if not painter.isActive():
+                return
+                
+            painter.setRenderHint(QPainter.Antialiasing)
+            
+            # Create rounded rectangle path
+            path = QPainterPath()
+            rect = QRect(0, 0, self.width(), self.height())
+            path.addRoundedRect(rect, 7, 7)
+            
+            # Fill with state color
+            color = self.colors.get(self.current_state, QColor(100, 100, 100, 230))
+            painter.fillPath(path, QBrush(color))
+            
+            painter.end()
+        except Exception as e:
+            # Silently ignore paint errors
+            pass
     
     def check_state(self):
         """Check state file for updates."""
@@ -107,13 +118,16 @@ class StatusWindow(QWidget):
         
         if new_state == "hidden":
             self.hide()
-            QApplication.quit()  # Exit the process
+            # Add a small delay before quitting to ensure cleanup
+            QTimer.singleShot(100, QApplication.quit)
         else:
             self.label.setText(self.texts.get(new_state, ""))
-            self.update()  # Trigger repaint
             if not self.isVisible():
                 self.show()
                 self.set_position()  # Set initial position
+            # Only trigger repaint if window is visible
+            if self.isVisible():
+                self.update()  # Trigger repaint
     
     def set_position(self):
         """Set window position at cursor location (once)."""

@@ -367,7 +367,8 @@ class AudioProcessor:
                 "--model", str(latest_snapshot),
                 "--output_dir", str(converted_dir),
                 "--copy_files", "tokenizer.json", "preprocessor_config.json",
-                "--quantization", "float16"
+                "--quantization", "float16",
+                "--force"
             ]
             
             self.logger.info(f"[PROCESSOR] Running conversion command: {' '.join(conversion_cmd)}")

@@ -75,8 +75,8 @@ class StatusIndicator:
         # Write hidden state
         self._write_state(IndicatorState.HIDDEN)
         
-        # Give process time to exit gracefully
-        time.sleep(0.1)
+        # Give process more time to exit gracefully
+        time.sleep(0.2)
         
         # Force kill if still running
         if self._process and self._process.poll() is None:
@@ -105,6 +105,8 @@ class StatusIndicator:
         
         # Start process if not running
         if self._process is None or self._process.poll() is not None:
+            # Add small delay to ensure clean restart
+            time.sleep(0.1)
             self.show(state)
     
     def _write_state(self, state: IndicatorState):
