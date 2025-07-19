@@ -1,0 +1,107 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dictationer"
+version = "1.0.0"
+description = "A voice recording system with keyboard hotkey control and threaded architecture"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Voice Recording System"}
+]
+keywords = ["voice", "recording", "audio", "hotkey", "dictation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Sound/Audio :: Capture/Recording",
+    "Topic :: System :: Monitoring",
+]
+dependencies = [
+    "pyaudio",
+    "keyboard",
+    "faster-whisper",
+    "watchdog",
+    "pyperclip",
+    "PySide6",
+    "python-dotenv",
+    "transformers",
+    # Note: Install PyTorch separately with CUDA support if needed:
+    # pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+    # For CPU-only: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "pytest-cov",
+    "black",
+    "flake8",
+    "mypy",
+]
+
+[project.scripts]
+dictationer = "dictationer.main:main"
+dictationer-gui = "gui_main:main"
+processor = "processor:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/dictationer"
+Repository = "https://github.com/yourusername/dictationer"
+Issues = "https://github.com/yourusername/dictationer/issues"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--cov=src/dictationer --cov-report=html --cov-report=term-missing"

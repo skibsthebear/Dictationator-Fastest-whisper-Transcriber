@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "WebFetch(domain:doc.qt.io)",
+      "Bash(./venv/bin/pip list)"
+    ],
+    "deny": []
+  }
+}
