@@ -475,31 +475,28 @@ class SettingsWidget(QWidget):
     device preferences, model settings, and hotkey configuration.
     """
     
-    def __init__(self, config_manager: ConfigManager):
+    def __init__(self, config_manager: ConfigManager, program_controller: 'ProgramController' = None):
         super().__init__()
         self.config_manager = config_manager
+        self.controller = program_controller
         self.setup_ui()
         self.load_settings()
+        if self.controller:
+            self.setup_connections()
     
     def setup_ui(self) -> None:
         """Set up the settings user interface."""
         layout = QVBoxLayout(self)
         
-        # Warning message at the top
-        warning_label = QLabel("WARNING: Make sure to turn on the program from control mode! This is intentional so that you don't waste system resources.")
-        warning_label.setStyleSheet("""
-            QLabel {
-                color: #ff0000;
-                font-weight: bold;
-                font-size: 14px;
-                padding: 10px;
-                background-color: #ffeeee;
-                border: 2px solid #ff0000;
-                border-radius: 5px;
-            }
-        """)
-        warning_label.setWordWrap(True)
-        layout.addWidget(warning_label)
+        # Program Status Display
+        status_group = QGroupBox("Program Status")
+        status_layout = QVBoxLayout(status_group)
+        
+        self.status_label = QLabel("Ready to start! Go to Control tab to begin!")
+        self.status_label.setStyleSheet("font-weight: bold; color: #2196F3; font-size: 14px; padding: 10px;")
+        status_layout.addWidget(self.status_label)
+        
+        layout.addWidget(status_group)
         
         # Add some spacing after the warning
         layout.addSpacing(10)
@@ -1023,6 +1020,28 @@ class SettingsWidget(QWidget):
                     border-color: #F57C00;
                 }
             """)
+    
+    def setup_connections(self) -> None:
+        """Set up signal connections with the program controller."""
+        if self.controller:
+            self.controller.program_started.connect(self.on_program_started)
+            self.controller.program_stopped.connect(self.on_program_stopped)
+            self.controller.program_error.connect(self.on_program_error)
+    
+    def on_program_started(self) -> None:
+        """Handle program started signal."""
+        self.status_label.setText("Recording System Running")
+        self.status_label.setStyleSheet("font-weight: bold; color: #4CAF50; font-size: 14px; padding: 10px;")
+    
+    def on_program_stopped(self) -> None:
+        """Handle program stopped signal."""
+        self.status_label.setText("Recording System Stopped")
+        self.status_label.setStyleSheet("font-weight: bold; color: #f44336; font-size: 14px; padding: 10px;")
+    
+    def on_program_error(self, error: str) -> None:
+        """Handle program error signal."""
+        self.status_label.setText(f"Error: {error}")
+        self.status_label.setStyleSheet("font-weight: bold; color: #ff5722; font-size: 14px; padding: 10px;")
 
 
 class ProgramControlWidget(QWidget):
@@ -1099,7 +1118,7 @@ class ProgramControlWidget(QWidget):
         status_group = QGroupBox("Program Status")
         status_layout = QVBoxLayout(status_group)
         
-        self.status_label = QLabel("Ready to start")
+        self.status_label = QLabel("Ready to start! Go to control tab to begin!")
         self.status_label.setStyleSheet("font-weight: bold; color: #2196F3;")
         status_layout.addWidget(self.status_label)
         
@@ -1219,12 +1238,14 @@ class DictationerGUI(QMainWindow):
         # Tab widget
         tab_widget = QTabWidget()
         
-        # Settings tab
-        self.settings_widget = SettingsWidget(self.config_manager)
+        # Control tab (create first to get controller reference)
+        self.control_widget = ProgramControlWidget(self.config_manager)
+        
+        # Settings tab (pass controller from control widget)
+        self.settings_widget = SettingsWidget(self.config_manager, self.control_widget.controller)
         tab_widget.addTab(self.settings_widget, "⚙️ Settings")
         
-        # Control tab
-        self.control_widget = ProgramControlWidget(self.config_manager)
+        # Add control tab second to maintain original order
         tab_widget.addTab(self.control_widget, "🎮 Control")
         
         layout.addWidget(tab_widget)
