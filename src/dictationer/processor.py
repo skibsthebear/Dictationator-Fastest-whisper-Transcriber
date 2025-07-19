@@ -10,6 +10,8 @@ import os
 import time
 import logging
 import threading
+import subprocess
+import sys
 from pathlib import Path
 from typing import Optional, Callable
 from watchdog.observers import Observer
@@ -30,6 +32,14 @@ try:
     STATUS_INDICATOR_AVAILABLE = True
 except ImportError:
     STATUS_INDICATOR_AVAILABLE = False
+
+# Import device configuration system
+try:
+    from .config import ConfigManager, DeviceDetector
+    CONFIG_AVAILABLE = True
+except ImportError as e:
+    CONFIG_AVAILABLE = False
+    _config_import_error = str(e)
 
 
 class AudioFileHandler(FileSystemEventHandler):
@@ -154,29 +164,75 @@ class AudioProcessor:
             auto_paste: Whether to automatically paste transcribed text to clipboard.
             enable_file_monitoring: Whether to enable file system monitoring (default: True).
         """
-        self.model_size = model_size
+        # Store original model name for cache checking and type detection
+        self.original_model_size = model_size
+        self.model_size = model_size  # Will be normalized later during loading
+            
         self.watch_directory = Path(watch_directory)
         self.auto_paste = auto_paste
         self.enable_file_monitoring = enable_file_monitoring
-        self.logger = self._setup_logging()
+        
+        if not hasattr(self, 'logger'):
+            self.logger = self._setup_logging()
         
         self.logger.info(f"[PROCESSOR] Initializing AudioProcessor")
-        self.logger.info(f"[PROCESSOR] Model size: {model_size}")
+        self.logger.info(f"[PROCESSOR] Model size: {self.original_model_size}")
         self.logger.info(f"[PROCESSOR] Watch directory: {watch_directory}")
         self.logger.info(f"[PROCESSOR] Auto-paste enabled: {auto_paste}")
+        self.logger.info(f"[PROCESSOR] File monitoring enabled: {enable_file_monitoring}")
         
-        # Initialize faster-whisper model
-        self.logger.info(f"[PROCESSOR] Loading Whisper model: {model_size}")
+        # Initialize device configuration
+        self.device_config = None
+        if CONFIG_AVAILABLE:
+            try:
+                config_manager = ConfigManager()
+                self.device_config = config_manager.get_device_config()
+                self.logger.info(f"[PROCESSOR] Device configuration loaded:")
+                self.logger.info(f"[PROCESSOR] - Preference: {self.device_config['preference']}")
+                self.logger.info(f"[PROCESSOR] - GPU Available: {self.device_config['gpu_available']}")
+                self.logger.info(f"[PROCESSOR] - Use GPU: {self.device_config['use_gpu']}")
+                self.logger.info(f"[PROCESSOR] - Device: {self.device_config['device']}")
+                if self.device_config['gpu_available']:
+                    gpu_info = self.device_config['gpu_info']
+                    self.logger.info(f"[PROCESSOR] - GPU Count: {gpu_info['device_count']}")
+                    for i, device in enumerate(gpu_info['devices']):
+                        self.logger.info(f"[PROCESSOR] - GPU {i}: {device['name']}")
+            except Exception as e:
+                self.logger.warning(f"[PROCESSOR] Failed to load device configuration: {e}")
+                self.device_config = {"use_gpu": False, "device": "cpu", "preference": "cpu"}
+        else:
+            self.logger.warning(f"[PROCESSOR] Device configuration not available: {_config_import_error}")
+            self.device_config = {"use_gpu": False, "device": "cpu", "preference": "cpu"}
+        
+        # Check if model is cached (for HF models) - use original model name
+        if "/" in self.original_model_size:
+            try:
+                from .config import ModelDetector
+                is_cached = ModelDetector.is_model_cached(self.original_model_size)
+                self.logger.info(f"[PROCESSOR] HuggingFace model cached: {is_cached}")
+                if not is_cached:
+                    self.logger.warning(f"[PROCESSOR] Model '{self.original_model_size}' may not be downloaded")
+                    self.logger.warning(f"[PROCESSOR] Download model via GUI or use 'base' model instead")
+            except ImportError:
+                self.logger.warning("[PROCESSOR] ModelDetector not available for cache check")
+        
+        # Initialize faster-whisper model with enhanced loading
         try:
-            self.model = WhisperModel(
-                model_size, 
-                device="cpu", 
-                compute_type="int8"
-            )
-            self.logger.info(f"[PROCESSOR] Whisper model loaded successfully")
+            self._load_whisper_model(self.original_model_size, self.device_config)
         except Exception as e:
-            self.logger.error(f"[PROCESSOR] Failed to load Whisper model: {e}")
-            raise
+            import traceback
+            
+            self.logger.error(f"[PROCESSOR] Model loading failed completely: {e}")
+            self.logger.error(f"[PROCESSOR] Error type: {type(e).__name__}")
+            self.logger.error(f"[PROCESSOR] Full traceback: {traceback.format_exc()}")
+            
+            # Check for specific error types and provide better messages
+            if "charmap" in str(e) or "codec" in str(e) or "unicode" in str(e).lower():
+                error_msg = f"Unicode encoding error loading model '{self.original_model_size}'. This is typically caused by emoji characters in model names. Use GUI instead of command line, or set PYTHONIOENCODING=utf-8"
+                self.logger.error(f"[PROCESSOR] {error_msg}")
+                raise Exception(error_msg)
+            else:
+                raise Exception(f"Failed to load Whisper model '{self.original_model_size}': {str(e)}")
         
         # Set up file monitoring (only if enabled)
         if self.enable_file_monitoring:
@@ -209,6 +265,362 @@ class AudioProcessor:
         
         self.logger.info(f"[PROCESSOR] AudioProcessor initialization complete")
         self.logger.info(f"[PROCESSOR] Auto-paste functionality: {'enabled' if self.paster else 'disabled'}")
+    
+    def _convert_huggingface_model(self, model_name: str) -> Optional[str]:
+        """
+        Convert HuggingFace PyTorch model to CTranslate2 format for faster-whisper compatibility.
+        
+        Args:
+            model_name: HuggingFace model name (e.g., "distil-whisper/distil-large-v3")
+            
+        Returns:
+            Path to converted model directory, or None if conversion failed
+        """
+        self.logger.info(f"[PROCESSOR] Starting model conversion for: {model_name}")
+        
+        try:
+            # Import required libraries for conversion
+            try:
+                import transformers
+                from huggingface_hub import snapshot_download
+                self.logger.info("[PROCESSOR] HuggingFace libraries available for conversion")
+            except ImportError as e:
+                self.logger.error(f"[PROCESSOR] Missing required libraries for conversion: {e}")
+                self.logger.error("[PROCESSOR] Install with: pip install transformers huggingface_hub")
+                return None
+            
+            # Check if ct2-transformers-converter is available
+            try:
+                result = subprocess.run([sys.executable, "-c", "import ctranslate2"],
+                                      capture_output=True, text=True)
+                if result.returncode != 0:
+                    self.logger.error("[PROCESSOR] CTranslate2 not available for conversion")
+                    self.logger.error("[PROCESSOR] Install with: pip install ctranslate2")
+                    return None
+                self.logger.info("[PROCESSOR] CTranslate2 available for conversion")
+            except Exception as e:
+                self.logger.error(f"[PROCESSOR] Error checking CTranslate2: {e}")
+                return None
+            
+            # Get HuggingFace cache directory
+            from huggingface_hub import HfFolder
+            cache_dir = os.path.expanduser("~/.cache/huggingface/hub")
+            
+            # Find the model directory
+            model_dir_name = f"models--{model_name.replace('/', '--')}"
+            model_cache_dir = Path(cache_dir) / model_dir_name
+            
+            if not model_cache_dir.exists():
+                self.logger.error(f"[PROCESSOR] Model cache directory not found: {model_cache_dir}")
+                return None
+            
+            # Find the snapshot directory (latest version)
+            snapshots_dir = model_cache_dir / "snapshots"
+            if not snapshots_dir.exists():
+                self.logger.error(f"[PROCESSOR] Snapshots directory not found: {snapshots_dir}")
+                return None
+            
+            # Get the latest snapshot
+            snapshot_dirs = [d for d in snapshots_dir.iterdir() if d.is_dir()]
+            if not snapshot_dirs:
+                self.logger.error(f"[PROCESSOR] No snapshots found in: {snapshots_dir}")
+                return None
+            
+            # Use the most recent snapshot
+            latest_snapshot = max(snapshot_dirs, key=lambda x: x.stat().st_mtime)
+            self.logger.info(f"[PROCESSOR] Using snapshot: {latest_snapshot}")
+            
+            # Check if model.bin exists (CTranslate2 format)
+            model_bin_path = latest_snapshot / "model.bin"
+            if model_bin_path.exists():
+                self.logger.info(f"[PROCESSOR] Model already in CTranslate2 format: {latest_snapshot}")
+                return str(latest_snapshot)
+            
+            # Check if PyTorch model files exist
+            pytorch_files = list(latest_snapshot.glob("*.bin")) + list(latest_snapshot.glob("*.safetensors"))
+            if not pytorch_files:
+                self.logger.error(f"[PROCESSOR] No PyTorch model files found in: {latest_snapshot}")
+                return None
+            
+            self.logger.info(f"[PROCESSOR] Found PyTorch model files: {[f.name for f in pytorch_files]}")
+            
+            # Create conversion output directory
+            converted_dir = latest_snapshot / "ct2_converted"
+            if converted_dir.exists() and (converted_dir / "model.bin").exists():
+                self.logger.info(f"[PROCESSOR] Using existing converted model: {converted_dir}")
+                return str(converted_dir)
+            
+            # If directory exists but model.bin doesn't, we need to clean and reconvert
+            if converted_dir.exists():
+                self.logger.info(f"[PROCESSOR] Cleaning incomplete conversion directory: {converted_dir}")
+                import shutil
+                shutil.rmtree(converted_dir)
+            
+            converted_dir.mkdir(exist_ok=True)
+            self.logger.info(f"[PROCESSOR] Created clean conversion directory: {converted_dir}")
+            
+            # Run the conversion using ct2-transformers-converter
+            self.logger.info("[PROCESSOR] Starting model conversion process...")
+            
+            conversion_cmd = [
+                "ct2-transformers-converter",
+                "--model", str(latest_snapshot),
+                "--output_dir", str(converted_dir),
+                "--copy_files", "tokenizer.json", "preprocessor_config.json",
+                "--quantization", "float16"
+            ]
+            
+            self.logger.info(f"[PROCESSOR] Running conversion command: {' '.join(conversion_cmd)}")
+            
+            # Run conversion with timeout
+            result = subprocess.run(
+                conversion_cmd,
+                capture_output=True,
+                text=True,
+                timeout=300,  # 5 minute timeout
+                cwd=str(latest_snapshot)
+            )
+            
+            if result.returncode == 0:
+                self.logger.info("[PROCESSOR] Model conversion completed successfully")
+                self.logger.info(f"[PROCESSOR] Conversion output: {result.stdout}")
+                
+                # Verify the converted model has the required files
+                if (converted_dir / "model.bin").exists():
+                    self.logger.info(f"[PROCESSOR] Converted model ready: {converted_dir}")
+                    return str(converted_dir)
+                else:
+                    self.logger.error("[PROCESSOR] Conversion completed but model.bin not found")
+                    return None
+            else:
+                self.logger.error(f"[PROCESSOR] Model conversion failed: {result.stderr}")
+                self.logger.error(f"[PROCESSOR] Conversion stdout: {result.stdout}")
+                return None
+                
+        except subprocess.TimeoutExpired:
+            self.logger.error("[PROCESSOR] Model conversion timed out after 5 minutes")
+            return None
+        except Exception as e:
+            self.logger.error(f"[PROCESSOR] Error during model conversion: {e}")
+            import traceback
+            self.logger.error(f"[PROCESSOR] Conversion traceback: {traceback.format_exc()}")
+            return None
+
+    def _load_whisper_model(self, model_size: str, device_config: dict):
+        """Load Whisper model with GPU/CUDA support and proper parameters based on model type."""
+        # Store original model name for type detection and cache checking
+        original_model_name = model_size
+        
+        self.logger.info(f"[PROCESSOR] Loading Whisper model: {original_model_name}")
+        self.logger.info(f"[PROCESSOR] Device config: {device_config}")
+        
+        # COMMENTED OUT: Original loading strategies (preserved for reference)
+        # try:
+        #     # Detect model type
+        #     if "/" in model_size:
+        #         # HuggingFace model (e.g., "distil-whisper/distil-large-v3.5")
+        #         self.logger.info(f"[PROCESSOR] Detected HuggingFace model: {model_size}")
+        #
+        #         # Check if model is cached
+        #         try:
+        #             from .config import ModelDetector
+        #             is_cached = ModelDetector.is_model_cached(model_size)
+        #             self.logger.info(f"[PROCESSOR] HuggingFace model cached: {is_cached}")
+        #             if not is_cached:
+        #                 self.logger.warning(f"[PROCESSOR] Model '{model_size}' may not be downloaded")
+        #         except ImportError:
+        #             self.logger.warning("[PROCESSOR] ModelDetector not available for cache check")
+        #
+        #         # Try different loading strategies for HF models
+        #         loading_strategies = [
+        #             {"device": "cpu", "compute_type": "int8", "local_files_only": False},
+        #             {"device": "cpu", "compute_type": "float32", "local_files_only": False},
+        #             {"device": "cpu", "compute_type": "int8", "local_files_only": True},
+        #             {"device": "cpu", "compute_type": "float32", "local_files_only": True},
+        #         ]
+        #
+        #         last_error = None
+        #         for i, strategy in enumerate(loading_strategies):
+        #             try:
+        #                 self.logger.info(f"[PROCESSOR] Trying loading strategy {i+1}: {strategy}")
+        #                 self.model = WhisperModel(model_size, **strategy)
+        #                 self.logger.info(f"[PROCESSOR] Successfully loaded with strategy {i+1}")
+        #                 self._log_model_info()
+        #                 return
+        #             except Exception as e:
+        #                 last_error = e
+        #                 self.logger.warning(f"[PROCESSOR] Strategy {i+1} failed: {e}")
+        #
+        #         # If all strategies failed, raise the last error
+        #         if last_error:
+        #             raise last_error
+        #
+        #     else:
+        #         # Standard faster-whisper model (e.g., "base", "large")
+        #         self.logger.info(f"[PROCESSOR] Detected standard model: {model_size}")
+        #         self.model = WhisperModel(model_size, device="cpu", compute_type="int8")
+        #         self.logger.info(f"[PROCESSOR] Standard model loaded successfully")
+        #         self._log_model_info()
+        
+        # NEW GPU-AWARE LOADING IMPLEMENTATION
+        try:
+            # Determine device and compute type based on configuration
+            use_gpu = device_config.get("use_gpu", False) if device_config else False
+            device = device_config.get("device", "cpu") if device_config else "cpu"
+            
+            self.logger.info(f"[PROCESSOR] GPU-aware loading - Use GPU: {use_gpu}, Device: {device}")
+            
+            # Detect model type using original model name (before normalization)
+            if "/" in original_model_name:
+                # HuggingFace model (e.g., "distil-whisper/distil-large-v3")
+                self.logger.info(f"[PROCESSOR] Detected HuggingFace model: {original_model_name}")
+                
+                # Check if model is cached using original name
+                try:
+                    from .config import ModelDetector
+                    is_cached = ModelDetector.is_model_cached(original_model_name)
+                    self.logger.info(f"[PROCESSOR] HuggingFace model cached: {is_cached}")
+                    if not is_cached:
+                        self.logger.warning(f"[PROCESSOR] Model '{original_model_name}' may not be downloaded")
+                except ImportError:
+                    self.logger.warning("[PROCESSOR] ModelDetector not available for cache check")
+                
+                # Use original model name directly - no normalization
+                normalized_model_name = original_model_name
+                self.logger.info(f"[PROCESSOR] Using exact model name for loading: '{original_model_name}'")
+                
+                # GPU-aware loading strategies for HuggingFace models
+                if use_gpu and device == "cuda":
+                    self.logger.info("[PROCESSOR] Attempting GPU loading with float16 precision")
+                    loading_strategies = [
+                        # GPU strategies with float16 for better performance
+                        {"device": "cuda", "compute_type": "float16", "local_files_only": False},
+                        {"device": "cuda", "compute_type": "float16", "local_files_only": True},
+                        {"device": "cuda", "compute_type": "int8_float16", "local_files_only": False},
+                        {"device": "cuda", "compute_type": "int8_float16", "local_files_only": True},
+                        # Fallback to CPU if GPU fails
+                        {"device": "cpu", "compute_type": "int8", "local_files_only": False},
+                        {"device": "cpu", "compute_type": "float32", "local_files_only": False},
+                        {"device": "cpu", "compute_type": "int8", "local_files_only": True},
+                        {"device": "cpu", "compute_type": "float32", "local_files_only": True},
+                    ]
+                else:
+                    self.logger.info("[PROCESSOR] Using CPU loading strategies")
+                    loading_strategies = [
+                        {"device": "cpu", "compute_type": "int8", "local_files_only": False},
+                        {"device": "cpu", "compute_type": "float32", "local_files_only": False},
+                        {"device": "cpu", "compute_type": "int8", "local_files_only": True},
+                        {"device": "cpu", "compute_type": "float32", "local_files_only": True},
+                    ]
+                
+                last_error = None
+                model_to_load = original_model_name
+                conversion_attempted = False
+                
+                for i, strategy in enumerate(loading_strategies):
+                    try:
+                        self.logger.info(f"[PROCESSOR] Trying loading strategy {i+1}: {strategy}")
+                        self.model = WhisperModel(model_to_load, **strategy)
+                        self.logger.info(f"[PROCESSOR] Successfully loaded with strategy {i+1}")
+                        self._log_model_info()
+                        return
+                    except Exception as e:
+                        last_error = e
+                        self.logger.warning(f"[PROCESSOR] Strategy {i+1} failed: {e}")
+                        
+                        # Check if this is a model.bin missing error and we haven't tried conversion yet
+                        if ("model.bin" in str(e) or "Unable to open file" in str(e)) and not conversion_attempted:
+                            self.logger.info("[PROCESSOR] Detected missing model.bin - attempting model conversion")
+                            converted_path = self._convert_huggingface_model(original_model_name)
+                            if converted_path:
+                                self.logger.info(f"[PROCESSOR] Model converted successfully, using: {converted_path}")
+                                model_to_load = converted_path
+                                conversion_attempted = True
+                                # Retry this strategy with the converted model
+                                try:
+                                    self.logger.info(f"[PROCESSOR] Retrying strategy {i+1} with converted model")
+                                    self.model = WhisperModel(model_to_load, **strategy)
+                                    self.logger.info(f"[PROCESSOR] Successfully loaded converted model with strategy {i+1}")
+                                    self._log_model_info()
+                                    return
+                                except Exception as retry_e:
+                                    self.logger.warning(f"[PROCESSOR] Converted model also failed with strategy {i+1}: {retry_e}")
+                                    last_error = retry_e
+                            else:
+                                self.logger.warning("[PROCESSOR] Model conversion failed, continuing with other strategies")
+                                conversion_attempted = True
+                        
+                        # Log specific GPU-related errors
+                        if "cuda" in str(e).lower() or "gpu" in str(e).lower():
+                            self.logger.warning(f"[PROCESSOR] GPU-related error, will try CPU fallback")
+                
+                # If all strategies failed, raise the last error
+                if last_error:
+                    raise last_error
+                    
+            else:
+                # Standard faster-whisper model (e.g., "base", "large")
+                self.logger.info(f"[PROCESSOR] Detected standard model: {original_model_name}")
+                
+                # Use original model name directly - no normalization
+                normalized_model_name = original_model_name
+                self.logger.info(f"[PROCESSOR] Using exact model name for loading: '{original_model_name}'")
+                
+                if use_gpu and device == "cuda":
+                    self.logger.info("[PROCESSOR] Loading standard model with GPU support")
+                    try:
+                        # Try GPU first with float16 for better performance
+                        self.model = WhisperModel(original_model_name, device="cuda", compute_type="float16")
+                        self.logger.info("[PROCESSOR] Standard model loaded successfully on GPU with float16")
+                    except Exception as e:
+                        self.logger.warning(f"[PROCESSOR] GPU loading failed, falling back to CPU: {e}")
+                        # Fallback to CPU
+                        self.model = WhisperModel(original_model_name, device="cpu", compute_type="int8")
+                        self.logger.info("[PROCESSOR] Standard model loaded successfully on CPU (GPU fallback)")
+                else:
+                    self.logger.info("[PROCESSOR] Loading standard model on CPU")
+                    self.model = WhisperModel(original_model_name, device="cpu", compute_type="int8")
+                    self.logger.info("[PROCESSOR] Standard model loaded successfully on CPU")
+                
+                self._log_model_info()
+                
+        except Exception as e:
+            self.logger.error(f"[PROCESSOR] Failed to load Whisper model '{original_model_name}': {e}")
+            self.logger.error(f"[PROCESSOR] Error type: {type(e).__name__}")
+            self.logger.error(f"[PROCESSOR] Detailed error: {str(e)}")
+            
+            # Try to provide helpful suggestions
+            if "/" in original_model_name:
+                self.logger.error(f"[PROCESSOR] HuggingFace model loading failed. Check if:")
+                self.logger.error(f"[PROCESSOR] 1. Model exists: https://huggingface.co/{original_model_name}")
+                self.logger.error(f"[PROCESSOR] 2. Model is compatible with faster-whisper")
+                self.logger.error(f"[PROCESSOR] 3. Model was downloaded properly")
+                self.logger.error(f"[PROCESSOR] 4. GPU drivers are properly installed (if using GPU)")
+                self.logger.error(f"[PROCESSOR] 5. Try using a standard model like 'base' instead")
+            else:
+                self.logger.error(f"[PROCESSOR] Standard model loading failed")
+                self.logger.error(f"[PROCESSOR] Try using 'base' model as fallback")
+                if use_gpu:
+                    self.logger.error(f"[PROCESSOR] GPU loading failed - check CUDA installation")
+            
+            raise
+    
+    def _log_model_info(self):
+        """Log detailed model information for debugging."""
+        try:
+            if hasattr(self.model, 'model_size_or_path'):
+                self.logger.info(f"[PROCESSOR] Model path/size: {self.model.model_size_or_path}")
+            if hasattr(self.model, 'device'):
+                self.logger.info(f"[PROCESSOR] Model device: {self.model.device}")
+            if hasattr(self.model, 'compute_type'):
+                self.logger.info(f"[PROCESSOR] Model compute type: {self.model.compute_type}")
+            
+            # Try to get model info
+            if hasattr(self.model, 'model') and self.model.model:
+                self.logger.info(f"[PROCESSOR] Model object type: {type(self.model.model)}")
+            
+        except Exception as e:
+            self.logger.debug(f"[PROCESSOR] Could not log model info: {e}")
     
     def transcribe_file(self, file_path: str) -> Optional[str]:
         """
@@ -245,7 +657,24 @@ class AudioProcessor:
             
             # Perform transcription
             self.logger.info(f"[PROCESSOR] Running Whisper transcription...")
-            segments, info = self.model.transcribe(file_path)
+            
+            # COMMENTED OUT: Original simple transcription call (preserved for reference)
+            # segments, info = self.model.transcribe(file_path)
+            
+            # NEW: Enhanced transcription with Distil-Whisper parameters
+            # These parameters are specifically optimized for Distil-Whisper models
+            # but also work well with standard models
+            self.logger.info(f"[PROCESSOR] Using enhanced transcription parameters:")
+            self.logger.info(f"[PROCESSOR] - beam_size=5 (improved accuracy)")
+            self.logger.info(f"[PROCESSOR] - language='en' (English optimization)")
+            self.logger.info(f"[PROCESSOR] - condition_on_previous_text=False (better for distil models)")
+            
+            segments, info = self.model.transcribe(
+                file_path,
+                beam_size=5,
+                language="en",
+                condition_on_previous_text=False
+            )
             
             # Log detected language
             self.logger.info(f"[PROCESSOR] Detected language: {info.language} (probability: {info.language_probability:.2f})")
@@ -363,7 +792,7 @@ class AudioProcessor:
             
             print(f"\n[SUCCESS] Audio Processor Started")
             print(f"Monitoring: {self.watch_directory}")
-            print(f"Model: {self.model_size}")
+            print(f"Model: {self.original_model_size}")
             print("Waiting for new audio files...\n")
             
             self.logger.info("[PROCESSOR] File monitoring started successfully")

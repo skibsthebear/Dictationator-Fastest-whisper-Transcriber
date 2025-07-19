@@ -88,12 +88,12 @@ class ModelDownloadThread(QThread):
                     # Download with transformers (this will cache it)
                     from transformers import AutoProcessor, AutoModelForSpeechSeq2Seq
                     
-                    self.status_updated.emit("🐌 This might take a while... Model files are quite large (GB). Please check back in 30 minutes.")
+                    self.status_updated.emit("This might take a while... Model files are quite large (GB). Please check back in 30 minutes.")
                     self.progress_updated.emit(65)
                     
                     processor = AutoProcessor.from_pretrained(self.model_name)
                     
-                    self.status_updated.emit("📥 Downloading main model files... This is the largest part and may take 20-30 minutes.")
+                    self.status_updated.emit("Downloading main model files... This is the largest part and may take 20-30 minutes.")
                     self.progress_updated.emit(70)
                     
                     model = AutoModelForSpeechSeq2Seq.from_pretrained(self.model_name)
@@ -101,7 +101,7 @@ class ModelDownloadThread(QThread):
                     # Clean up
                     del processor, model
                     
-                    self.status_updated.emit("✅ Large model download complete! Model cached successfully.")
+                    self.status_updated.emit("Large model download complete! Model cached successfully.")
                     self.progress_updated.emit(95)
             else:
                 # Standard faster-whisper model
@@ -218,7 +218,7 @@ class ModelDownloadDialog(QDialog):
         """Handle successful download completion."""
         self.cancel_btn.setEnabled(False)
         self.close_btn.setEnabled(True)
-        self.status_label.setText("✅ Download completed successfully!")
+        self.status_label.setText("Download completed successfully!")
         
         # Emit signal to parent to refresh models
         if self.parent():
@@ -229,7 +229,7 @@ class ModelDownloadDialog(QDialog):
         """Handle download failure."""
         self.cancel_btn.setEnabled(False)
         self.close_btn.setEnabled(True)
-        self.status_label.setText(f"❌ Download failed: {error}")
+        self.status_label.setText(f"Download failed: {error}")
         self.progress_bar.setValue(0)
         
         QMessageBox.critical(self, "Download Failed", f"Failed to download {self.model_name}:\n\n{error}")
@@ -292,7 +292,13 @@ class ProgramController(QObject):
             # Prepare environment variables from config
             env = os.environ.copy()  # Start with current environment
             env["DICTATIONER_HOTKEY"] = config.get("hotkey", "ctrl+win+shift+l")
-            env["WHISPER_MODEL_SIZE"] = config.get("whisper_model_size", "base")
+            
+            # Get the selected model name and ensure it's clean (no warning prefixes)
+            model_name = config.get("whisper_model_size", "base")
+            if model_name.startswith("[WARNING] "):
+                model_name = model_name.replace("[WARNING] ", "")
+            env["WHISPER_MODEL_SIZE"] = model_name
+            
             env["OUTPUT_DIRECTORY"] = config.get("output_directory", "outputs")
             env["DEVICE_PREFERENCE"] = config.get("device_preference", "auto")
             
@@ -479,7 +485,7 @@ class SettingsWidget(QWidget):
         layout = QVBoxLayout(self)
         
         # Warning message at the top
-        warning_label = QLabel("⚠️ Make sure to turn on the program from control mode! This is intentional so that you don't waste system resources.")
+        warning_label = QLabel("WARNING: Make sure to turn on the program from control mode! This is intentional so that you don't waste system resources.")
         warning_label.setStyleSheet("""
             QLabel {
                 color: #ff0000;
@@ -528,12 +534,12 @@ class SettingsWidget(QWidget):
         # Buttons layout
         buttons_layout = QHBoxLayout()
         
-        self.refresh_models_btn = QPushButton("🔄 Refresh")
+        self.refresh_models_btn = QPushButton("Refresh")
         self.refresh_models_btn.clicked.connect(self.refresh_models)
         self.refresh_models_btn.setMaximumWidth(100)
         buttons_layout.addWidget(self.refresh_models_btn)
         
-        self.open_cache_btn = QPushButton("📁 Models Folder")
+        self.open_cache_btn = QPushButton("Models Folder")
         self.open_cache_btn.clicked.connect(self.open_models_folder)
         self.open_cache_btn.setMaximumWidth(120)
         self.open_cache_btn.setStyleSheet("""
@@ -693,7 +699,13 @@ class SettingsWidget(QWidget):
     def _perform_auto_save(self):
         """Perform the actual auto-save operation."""
         self.config_manager.set("device_preference", self.device_combo.currentText())
-        self.config_manager.set("whisper_model_size", self.cached_model_combo.currentText())
+        
+        # Clean model name - remove warning prefix if present
+        model_name = self.cached_model_combo.currentText()
+        if model_name.startswith("[WARNING] "):
+            model_name = model_name.replace("[WARNING] ", "")
+        self.config_manager.set("whisper_model_size", model_name)
+        
         self.config_manager.set("hotkey", self.hotkey_edit.text())
         self.config_manager.set("output_directory", self.output_dir_edit.text())
         # Always enable transcription and auto-paste - that's the core functionality
@@ -708,9 +720,9 @@ class SettingsWidget(QWidget):
         if hasattr(main_window, 'statusBar'):
             status_bar = main_window.statusBar()
             if success:
-                status_bar.showMessage("✓ Settings auto-saved", 2000)  # Show for 2 seconds
+                status_bar.showMessage("Settings auto-saved", 2000)  # Show for 2 seconds
             else:
-                status_bar.showMessage("⚠ Auto-save failed", 3000)  # Show for 3 seconds
+                status_bar.showMessage("WARNING: Auto-save failed", 3000)  # Show for 3 seconds
     
     def load_settings(self) -> None:
         """Load current settings into the UI."""
@@ -739,7 +751,13 @@ class SettingsWidget(QWidget):
     def save_settings(self) -> None:
         """Manually save current UI settings to configuration."""
         self.config_manager.set("device_preference", self.device_combo.currentText())
-        self.config_manager.set("whisper_model_size", self.cached_model_combo.currentText())
+        
+        # Clean model name - remove warning prefix if present
+        model_name = self.cached_model_combo.currentText()
+        if model_name.startswith("[WARNING] "):
+            model_name = model_name.replace("[WARNING] ", "")
+        self.config_manager.set("whisper_model_size", model_name)
+        
         self.config_manager.set("hotkey", self.hotkey_edit.text())
         self.config_manager.set("output_directory", self.output_dir_edit.text())
         # Always enable transcription and auto-paste - that's the core functionality
@@ -784,18 +802,59 @@ class SettingsWidget(QWidget):
         QMessageBox.information(self, "GPU Information", info_text)
     
     def refresh_models(self) -> None:
-        """Refresh the list of cached models."""
+        """Refresh the list of cached models with validation."""
         self.cached_model_combo.clear()
         
         # Get cached models
         cached_models = ModelDetector.get_cached_models()
         
+        # Add only standard models that are actually cached
+        standard_models = ["base", "small", "medium", "large", "tiny", "large-v1", "large-v2", "large-v3"]
+        for model in standard_models:
+            if model in cached_models:
+                self.cached_model_combo.addItem(model)
+                self.cached_model_combo.setItemData(
+                    self.cached_model_combo.count()-1, 
+                    f"Standard faster-whisper model: {model}", 
+                    Qt.ItemDataRole.ToolTipRole
+                )
+        
+        # Add cached HuggingFace models with validation
         if cached_models:
-            self.cached_model_combo.addItems(cached_models)
-        else:
-            # If no models are cached, add a default set
-            self.cached_model_combo.addItem("base")  # Most common fallback
-            self.cached_model_combo.setItemData(0, "No cached models found - will download 'base' when first used", Qt.ItemDataRole.ToolTipRole)
+            hf_models = [m for m in cached_models if "/" in m]  # HuggingFace models have "/" in name
+            
+            for model in hf_models:
+                # Validate each HuggingFace model
+                validation = ModelDetector.validate_model_compatibility(model)
+                if validation['valid']:
+                    # Only add valid models to the dropdown
+                    self.cached_model_combo.addItem(model)
+                    self.cached_model_combo.setItemData(
+                        self.cached_model_combo.count()-1,
+                        f"VALID: {validation['reason']}",
+                        Qt.ItemDataRole.ToolTipRole
+                    )
+                # Skip invalid models entirely - don't add them to the dropdown
+                # This prevents users from selecting broken models and eliminates warning prefixes
+        
+        # If no models at all, add fallback and show debug info
+        if self.cached_model_combo.count() == 0:
+            self.cached_model_combo.addItem("base")
+            self.cached_model_combo.setItemData(0, "Fallback model - will download when first used", Qt.ItemDataRole.ToolTipRole)
+            
+            # Add debug information for troubleshooting
+            print(f"[DEBUG] No cached models found!")
+            print(f"[DEBUG] Cached models detected: {cached_models}")
+            
+            import os
+            from pathlib import Path
+            cache_dir = os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface")
+            model_path = Path(cache_dir) / "hub"
+            print(f"[DEBUG] Looking in cache directory: {model_path}")
+            print(f"[DEBUG] Cache directory exists: {model_path.exists()}")
+            if model_path.exists():
+                dirs = [d.name for d in model_path.iterdir() if d.is_dir()]
+                print(f"[DEBUG] Directories in cache: {dirs[:5]}...")  # Show first 5
     
     def set_hf_model(self, model_id: str) -> None:
         """Set the HuggingFace model input field to the selected model."""
@@ -900,7 +959,7 @@ class SettingsWidget(QWidget):
                 }
             """)
         else:
-            self.gpu_info_btn.setText("⚠ CPU Only")
+            self.gpu_info_btn.setText("CPU Only")
             self.gpu_info_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #FF9800;
@@ -961,7 +1020,7 @@ class ProgramControlWidget(QWidget):
         self.start_btn.clicked.connect(self.start_program)
         button_layout.addWidget(self.start_btn)
         
-        self.stop_btn = QPushButton("🛑 Stop Recording System")
+        self.stop_btn = QPushButton("Stop Recording System")
         self.stop_btn.setStyleSheet("""
             QPushButton {
                 background-color: #f44336;
@@ -1043,25 +1102,25 @@ class ProgramControlWidget(QWidget):
     
     def on_program_started(self) -> None:
         """Handle program started signal."""
-        self.status_label.setText("🟢 Recording System Running")
+        self.status_label.setText("Recording System Running")
         self.status_label.setStyleSheet("font-weight: bold; color: #4CAF50;")
         self.start_btn.setEnabled(False)
         self.stop_btn.setEnabled(True)
-        self.output_display.append("📱 Recording system started successfully!")
+        self.output_display.append("Recording system started successfully!")
     
     def on_program_stopped(self) -> None:
         """Handle program stopped signal."""
-        self.status_label.setText("🔴 Recording System Stopped")
+        self.status_label.setText("Recording System Stopped")
         self.status_label.setStyleSheet("font-weight: bold; color: #f44336;")
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
-        self.output_display.append("🛑 Recording system stopped.")
+        self.output_display.append("Recording system stopped.")
     
     def on_program_error(self, error: str) -> None:
         """Handle program error signal."""
-        self.status_label.setText("⚠️ Error")
+        self.status_label.setText("ERROR")
         self.status_label.setStyleSheet("font-weight: bold; color: #FF9800;")
-        self.output_display.append(f"❌ Error: {error}")
+        self.output_display.append(f"Error: {error}")
     
     def on_output_received(self, output: str) -> None:
         """Handle program output signal."""

@@ -214,8 +214,10 @@ class ConfigManager:
             key (str): Configuration key.
             value (Any): Value to set.
         """
+        # Store exact model names without normalization
         self.config[key] = value
-        self.logger.debug(f"Config updated: {key} = {value}")
+        
+        self.logger.debug(f"Config updated: {key} = {self.config[key]}")
     
     def get_device_config(self) -> Dict[str, Any]:
         """
@@ -383,8 +385,124 @@ class ModelDetector:
         Returns:
             bool: True if model is cached, False otherwise.
         """
+        # Check cache using exact model name - no normalization
         cached_models = ModelDetector.get_cached_models()
         return model_name in cached_models
+    
+    @staticmethod
+    def validate_model_compatibility(model_name: str) -> dict:
+        """
+        Validate if a model is compatible with faster-whisper.
+        
+        Args:
+            model_name (str): Name of the model to validate.
+        
+        Returns:
+            dict: Validation result with 'valid', 'reason', 'suggestions'
+        """
+        result = {
+            'valid': False,
+            'reason': '',
+            'suggestions': []
+        }
+        
+        try:
+            if "/" not in model_name:
+                # Standard model
+                standard_models = ['tiny', 'base', 'small', 'medium', 'large', 'large-v2', 'large-v3']
+                if model_name in standard_models:
+                    result['valid'] = True
+                    result['reason'] = f"Standard model '{model_name}' is supported"
+                else:
+                    result['reason'] = f"Unknown standard model: {model_name}"
+                    result['suggestions'] = ['Use: base, small, medium, large, large-v3']
+            else:
+                # HuggingFace model
+                if not ModelDetector.is_model_cached(model_name):
+                    result['reason'] = f"Model not cached: {model_name}"
+                    result['suggestions'] = ['Download model via GUI first']
+                    return result
+                
+                # For cached HuggingFace models, assume they're valid if they're cached
+                # This avoids the expensive and potentially problematic test loading
+                # The actual validation will happen when the model is used
+                result['valid'] = True
+                result['reason'] = f"HuggingFace model '{model_name}' is cached and ready to use"
+                
+                # Optional: Add specific validation for known model patterns
+                if any(pattern in model_name.lower() for pattern in ['whisper', 'distil']):
+                    result['reason'] = f"Whisper-compatible model '{model_name}' is cached and ready to use"
+                    
+        except Exception as e:
+            result['reason'] = f"Validation error: {str(e)}"
+            result['suggestions'] = ['Try different model', 'Check system configuration']
+        
+        return result
+
+
+def normalize_model_name(model_name: str) -> str:
+    """
+    Normalize HuggingFace model names to faster-whisper compatible format.
+    
+    This function converts HuggingFace model repository names to the format
+    expected by faster-whisper, making the system more user-friendly by
+    allowing users to copy model names directly from HuggingFace model cards.
+    
+    Examples:
+        distil-whisper/distil-large-v3 -> distil-large-v3
+        distil-whisper/distil-large-v3.5 -> distil-large-v3.5
+        openai/whisper-large-v3 -> large-v3
+        openai/whisper-large-v3-turbo -> large-v3-turbo
+        base -> base (unchanged)
+        large -> large (unchanged)
+        custom-org/custom-model -> custom-org/custom-model (unchanged)
+    
+    Args:
+        model_name (str): The model name to normalize.
+        
+    Returns:
+        str: The normalized model name compatible with faster-whisper.
+    """
+    if not model_name or not isinstance(model_name, str):
+        return model_name
+    
+    model_name = model_name.strip()
+    
+    # If it's not a HuggingFace format (no slash), return as-is
+    if "/" not in model_name:
+        return model_name
+    
+    # Split into organization and model parts
+    parts = model_name.split("/", 1)
+    if len(parts) != 2:
+        return model_name
+    
+    org, model = parts
+    
+    # Handle distil-whisper models
+    if org == "distil-whisper":
+        # distil-whisper/distil-large-v3 -> distil-large-v3
+        # distil-whisper/distil-medium.en -> distil-medium.en
+        if model.startswith("distil-"):
+            return model
+        else:
+            # Keep original if it doesn't follow expected pattern
+            return model_name
+    
+    # Handle openai whisper models
+    elif org == "openai":
+        # openai/whisper-large-v3 -> large-v3
+        # openai/whisper-base -> base
+        if model.startswith("whisper-"):
+            return model[8:]  # Remove "whisper-" prefix
+        else:
+            # Keep original if it doesn't follow expected pattern
+            return model_name
+    
+    # For other organizations, keep the full name as-is
+    # This ensures compatibility with custom models
+    else:
+        return model_name
 
 
 def detect_optimal_device() -> str:

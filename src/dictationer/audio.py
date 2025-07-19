@@ -103,8 +103,24 @@ class AudioRecorder:
         
         if self.enable_transcription and PROCESSOR_AVAILABLE:
             try:
+                # Use exact model name without normalization
+                original_model_size = model_size
+                self.logger.info(f"[AUDIO] Using exact model name: '{model_size}'")
+                print(f"[DEBUG] Using exact model name: '{model_size}'")
+                
                 self.logger.info(f"[AUDIO] Initializing AudioProcessor with model: {model_size}")
                 print(f"[DEBUG] Initializing AudioProcessor with model: {model_size}")
+                
+                # Check if HuggingFace model is available (using normalized name)
+                if "/" in model_size:
+                    try:
+                        from .config import ModelDetector
+                        if not ModelDetector.is_model_cached(model_size):
+                            self.logger.warning(f"[AUDIO] HuggingFace model '{model_size}' not found in cache")
+                            print(f"[WARNING] Model '{model_size}' not found in cache")
+                            print(f"[WARNING] This may cause loading to fail or be very slow")
+                    except ImportError:
+                        self.logger.warning("[AUDIO] ModelDetector not available for cache check")
                 
                 # Extract directory from output_file for processor watch directory
                 output_dir = os.path.dirname(self.output_file) or "outputs"
@@ -113,17 +129,78 @@ class AudioRecorder:
                 
                 # Create processor instance with file monitoring DISABLED
                 # We'll use direct transcription calls instead to avoid dual processing
-                self.processor = AudioProcessor(model_size=model_size, watch_directory=output_dir, auto_paste=self.auto_paste, enable_file_monitoring=False)
+                self.processor = AudioProcessor(
+                    model_size=model_size, 
+                    watch_directory=output_dir, 
+                    auto_paste=self.auto_paste, 
+                    enable_file_monitoring=False
+                )
                 self.logger.info("[AUDIO] AudioProcessor created successfully")
                 print("[DEBUG] AudioProcessor created successfully")
                 self.logger.info("[AUDIO] Using direct transcription mode (no file monitoring)")
                 print("[DEBUG] Using direct transcription mode (no file monitoring)")
                 
             except Exception as e:
+                import traceback
+                
+                # Enhanced error logging with full details
+                error_traceback = traceback.format_exc()
                 self.logger.error(f"[AUDIO] Failed to initialize AudioProcessor: {e}")
-                print(f"[ERROR] Failed to initialize AudioProcessor: {e}")
+                self.logger.error(f"[AUDIO] Error type: {type(e).__name__}")
+                self.logger.error(f"[AUDIO] Model causing error: '{model_size}'")
+                self.logger.error(f"[AUDIO] Full traceback: {error_traceback}")
+                
+                print(f"[ERROR] AudioProcessor initialization failed: {e}")
+                print(f"[ERROR] Error type: {type(e).__name__}")
+                print(f"[ERROR] Model: '{model_size}'")
+                
+                # Check for specific error types and provide targeted guidance
+                error_str = str(e).lower()
+                if "charmap" in error_str or "codec" in error_str or "unicode" in error_str:
+                    print(f"\n=== UNICODE ENCODING ERROR DETECTED ===")
+                    print(f"[CAUSE] Windows console cannot display Unicode characters (emojis) in model names")
+                    print(f"[ISSUE] Model name likely contains emoji characters from GUI validation")
+                    print(f"[SOLUTIONS]:")
+                    print(f"  1. Use Windows PowerShell instead of Command Prompt")
+                    print(f"  2. Set encoding: set PYTHONIOENCODING=utf-8") 
+                    print(f"  3. Use GUI launcher: start_gui.bat (recommended)")
+                    print(f"  4. Switch to 'base' model in settings to avoid HuggingFace models")
+                    print(f"  5. Check settings file: config/settings.json for emoji characters")
+                    print(f"========================================\n")
+                    self.logger.error(f"[AUDIO] Unicode encoding error - Windows console cannot handle emojis in model names")
+                    self.logger.error(f"[AUDIO] This is typically caused by [WARNING] prefix added to invalid models in GUI")
+                elif "/" in model_size:
+                    print(f"\n=== HUGGINGFACE MODEL ERROR ===")
+                    print(f"[MODEL] HuggingFace model: '{model_size}'")
+                    print(f"[SOLUTIONS]:")
+                    print(f"  1. Download model via GUI Settings tab first")
+                    print(f"  2. Switch to 'base' model in settings") 
+                    print(f"  3. Check model compatibility with faster-whisper")
+                    print(f"  4. Verify model exists: https://huggingface.co/{model_size}")
+                    print(f"===============================\n")
+                    self.logger.error(f"[AUDIO] HuggingFace model '{model_size}' failed to load")
+                    self.logger.error(f"[AUDIO] Try downloading via GUI or use 'base' model")
+                else:
+                    print(f"\n=== STANDARD MODEL ERROR ===")
+                    print(f"[MODEL] Standard model: '{model_size}'")
+                    print(f"[SOLUTIONS]:")
+                    print(f"  1. Try 'base' model as fallback")
+                    print(f"  2. Check faster-whisper installation")
+                    print(f"  3. Verify model name is correct")
+                    print(f"=============================\n")
+                    self.logger.error(f"[AUDIO] Standard model '{model_size}' failed to load")
+                
+                # Log detailed information for debugging
+                self.logger.error(f"[AUDIO] === DEBUGGING INFORMATION ===")
+                self.logger.error(f"[AUDIO] Output directory: {output_dir}")
+                self.logger.error(f"[AUDIO] Enable transcription: {self.enable_transcription}")
+                self.logger.error(f"[AUDIO] Auto paste: {self.auto_paste}")
+                self.logger.error(f"[AUDIO] PROCESSOR_AVAILABLE: {PROCESSOR_AVAILABLE}")
+                
                 self.processor = None
-                print(f"Warning: Transcription disabled due to initialization error: {e}")
+                print(f"[WARNING] Transcription disabled due to model loading error")
+                print(f"[DEBUG] Full error details logged to: logs/voice_recorder_debug.log")
+                print(f"[DEBUG] Check logs/audio_processor.log for AudioProcessor-specific errors")
                 
         elif self.enable_transcription and not PROCESSOR_AVAILABLE:
             self.logger.warning(f"[AUDIO] AudioProcessor not available: {_processor_import_error}")

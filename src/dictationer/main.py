@@ -268,9 +268,29 @@ def main():
         controller.start()
         
     except Exception as e:
+        import traceback
+        
         logger = logging.getLogger('VoiceRecorder')
         logger.error(f"[MAIN] Critical error in main: {e}")
+        logger.error(f"[MAIN] Error type: {type(e).__name__}")
+        logger.error(f"[MAIN] Full traceback: {traceback.format_exc()}")
+        
         print(f"Critical Error: {e}")
+        print(f"Error type: {type(e).__name__}")
+        
+        # Provide specific guidance for common issues
+        if "charmap" in str(e) or "codec" in str(e) or "unicode" in str(e).lower():
+            print("\n=== UNICODE ENCODING ERROR DETECTED ===")
+            print("This error is caused by Windows console encoding issues with Unicode characters.")
+            print("\nRecommended Solutions:")
+            print("1. Use PowerShell instead of Command Prompt")
+            print("2. Set encoding: set PYTHONIOENCODING=utf-8")
+            print("3. Use the GUI launcher: start_gui.bat")
+            print("4. Remove emoji characters from model names in settings")
+            print("\nFull error details saved to: logs/voice_recorder_debug.log")
+        else:
+            print(f"\nFull error details saved to: logs/voice_recorder_debug.log")
+        
         sys.exit(1)
 
 
