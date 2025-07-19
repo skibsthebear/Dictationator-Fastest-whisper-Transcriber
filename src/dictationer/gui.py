@@ -610,43 +610,77 @@ class SettingsWidget(QWidget):
         hf_layout.addWidget(suggestions_label)
         
         suggestions_widget = QWidget()
-        suggestions_layout = QVBoxLayout(suggestions_widget)
-        suggestions_layout.setContentsMargins(10, 5, 10, 5)
+        suggestions_widget.setMinimumHeight(120)
+        suggestions_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        
+        # Create a centered horizontal layout
+        suggestions_layout = QHBoxLayout(suggestions_widget)
+        suggestions_layout.setContentsMargins(10, 10, 10, 10)
+        suggestions_layout.setSpacing(15)
         
         popular_models = [
-            ("distil-whisper/distil-large-v3", "Distilled Large V3 - Good balance of speed and quality"),
-            ("openai/whisper-large-v3-turbo", "Latest OpenAI Turbo model - Fastest"),
-            ("openai/whisper-large-v3", "OpenAI Large V3 - Highest quality")
+            ("distil-whisper/distil-large-v3", "⚡ Fast & Accurate", "Best for real-time transcription with good accuracy"),
+            ("openai/whisper-large-v3-turbo", "🚀 Ultra Fast", "Fastest model, ideal for quick processing"), 
+            ("openai/whisper-large-v3", "🎯 High Quality", "Most accurate, best for important recordings")
         ]
         
-        for model_id, description in popular_models:
-            suggestion_row = QHBoxLayout()
+        # Add stretch at the beginning to center the cards
+        suggestions_layout.addStretch()
+        
+        for model_id, title, description in popular_models:
+            # Create a vertical card for each model
+            model_card = QWidget()
+            model_card.setFixedWidth(220)
+            model_card.setStyleSheet("""
+                QWidget {
+                    background-color: #353535;
+                    border: 1px solid #444;
+                    border-radius: 8px;
+                }
+            """)
+            model_card_layout = QVBoxLayout(model_card)
+            model_card_layout.setContentsMargins(10, 10, 10, 10)
+            model_card_layout.setSpacing(8)
             
+            # Model title with emoji
+            title_label = QLabel(title)
+            title_label.setStyleSheet("color: white; font-size: 12px; font-weight: bold;")
+            title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            model_card_layout.addWidget(title_label)
+            
+            # Model ID button  
             model_btn = QPushButton(model_id)
-            model_btn.clicked.connect(lambda checked, m=model_id: self.set_hf_model(m))
+            # Use default parameter to capture model_id by value
+            model_btn.clicked.connect(lambda checked=False, m=model_id: self.set_hf_model(m))
+            model_btn.setMinimumHeight(28)
             model_btn.setStyleSheet("""
                 QPushButton {
-                    background-color: transparent;
-                    color: #2196F3;
-                    border: 1px solid #2196F3;
-                    padding: 4px 8px;
-                    text-align: left;
-                    font-size: 11px;
+                    background-color: #2196F3;
+                    color: white;
+                    border: none;
+                    padding: 5px 8px;
+                    text-align: center;
+                    font-size: 10px;
+                    border-radius: 4px;
+                    font-weight: 500;
+                    min-height: 28px;
                 }
                 QPushButton:hover {
                     background-color: #1976D2;
-                    color: white;
+                }
+                QPushButton:pressed {
+                    background-color: #1565C0;
                 }
             """)
-            model_btn.setMaximumWidth(250)
-            suggestion_row.addWidget(model_btn)
+            model_card_layout.addWidget(model_btn)
             
-            desc_label = QLabel(description)
-            desc_label.setStyleSheet("color: #999999; font-size: 10px;")
-            suggestion_row.addWidget(desc_label)
-            suggestion_row.addStretch()
+            # Add some vertical stretch to keep content at top
+            model_card_layout.addStretch()
             
-            suggestions_layout.addLayout(suggestion_row)
+            suggestions_layout.addWidget(model_card)
+        
+        # Add stretch to keep cards compact
+        suggestions_layout.addStretch()
         
         hf_layout.addWidget(suggestions_widget)
         model_layout.addWidget(hf_section)
@@ -1164,7 +1198,7 @@ class DictationerGUI(QMainWindow):
     def setup_ui(self) -> None:
         """Set up the main user interface."""
         self.setWindowTitle("Dictationer - Voice Recording System")
-        self.setMinimumSize(800, 600)
+        self.setMinimumSize(1000, 800)
         self.resize(1000, 700)
         
         # Set window icon
