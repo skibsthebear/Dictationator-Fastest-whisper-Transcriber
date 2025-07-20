@@ -165,7 +165,7 @@ class AudioRecorder:
                     print(f"[SOLUTIONS]:")
                     print(f"  1. Use Windows PowerShell instead of Command Prompt")
                     print(f"  2. Set encoding: set PYTHONIOENCODING=utf-8") 
-                    print(f"  3. Use GUI launcher: start_gui.bat (recommended)")
+                    print(f"  3. Use GUI launcher: start.bat (recommended)")
                     print(f"  4. Switch to 'base' model in settings to avoid HuggingFace models")
                     print(f"  5. Check settings file: config/settings.json for emoji characters")
                     print(f"========================================\n")

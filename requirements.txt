@@ -1,3 +1,7 @@
+# If you want GPU support, make sure you have CUDA installed with a supported GPU.
+# Note: Install PyTorch separately with the correct CUDA version for your system:
+# Check your CUDA version with: nvidia-smi
+
 pyaudio
 keyboard
 faster-whisper
@@ -7,8 +11,3 @@ PySide6
 python-dotenv
 transformers
 
-# Note: Install PyTorch separately with the correct CUDA version for your system:
-# For CUDA 11.8: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-# For CUDA 12.1: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-# For CPU-only: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-# Check your CUDA version with: nvidia-smi

@@ -286,7 +286,7 @@ def main():
             print("\nRecommended Solutions:")
             print("1. Use PowerShell instead of Command Prompt")
             print("2. Set encoding: set PYTHONIOENCODING=utf-8")
-            print("3. Use the GUI launcher: start_gui.bat")
+            print("3. Use the GUI launcher: start.bat")
             print("4. Remove emoji characters from model names in settings")
             print("\nFull error details saved to: logs/voice_recorder_debug.log")
         else:

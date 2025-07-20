@@ -3,7 +3,8 @@
     "allow": [
       "Bash(mkdir:*)",
       "WebFetch(domain:doc.qt.io)",
-      "Bash(./venv/bin/pip list)"
+      "Bash(./venv/bin/pip list)",
+      "Bash(mv:*)"
     ],
     "deny": []
   }

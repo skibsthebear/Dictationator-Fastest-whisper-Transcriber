@@ -2,6 +2,8 @@
 
 **Effortlessly capture and transcribe your thoughts with intelligent voice recording and powerful AI.**
 
+> 💡 **GPU Support Available**: For faster transcription, install with CUDA support. See [GPU installation instructions](#gpu-support-optional-but-recommended) below.
+
 <div align="center">
   <img src="logo.png" alt="Dictationer Logo" width="200" height="200">
 </div>
@@ -36,6 +38,13 @@ A professional voice recording system with **PySide6 GUI**, real-time transcript
 
 ## 📦 Installation
 
+### Prerequisites
+
+- **Python 3.8 or higher** must be installed on your system
+  - Windows: Download from [python.org](https://www.python.org/downloads/)
+  - Linux: Usually pre-installed, or use `sudo apt install python3`
+  - macOS: Use [python.org](https://www.python.org/downloads/) or `brew install python3`
+
 ### Quick Start (Recommended)
 
 ```bash
@@ -43,17 +52,49 @@ A professional voice recording system with **PySide6 GUI**, real-time transcript
 git clone <repository-url>
 cd dictationer
 
-# Create virtual environment
-python -m venv venv
-# Windows: Use venv\Scripts\activate
-# Linux/macOS: Use source venv/bin/activate
+# Run the automated setup script
+python setup.py    # Windows
+python3 setup.py   # Linux/macOS
+```
 
-# Install dependencies
-pip install -r requirements.txt
+The setup script will:
+1. ✅ Check your Python version
+2. ✅ Create a virtual environment
+3. ✅ Guide you through GPU setup options
+4. ✅ Install all dependencies
+5. ✅ Verify the installation
 
-# Launch GUI (Recommended)
-./start_gui.bat    # Windows
-./start_gui.sh     # Linux/macOS
+After setup completes, launch the program:
+```bash
+./start.bat    # Windows
+./start.sh     # Linux/macOS
+```
+
+### GPU Support (Optional but Recommended)
+
+The setup script will explain GPU requirements, but here's a summary:
+
+1. **Install CUDA Toolkit** from [NVIDIA](https://developer.nvidia.com/cuda-downloads)
+2. **Check your CUDA version**: `nvidia-smi`
+3. **Install PyTorch with CUDA** (after activating the venv):
+
+```bash
+# Activate the virtual environment first
+venv\Scripts\activate     # Windows
+source venv/bin/activate  # Linux/macOS
+
+# Then install PyTorch based on your CUDA version:
+# For CUDA 12.1 (most recent GPUs):
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# For CUDA 11.8 (older GPUs):
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+# For CPU only (if no GPU):
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+```
+
+**Note**: The GUI will automatically detect and use your GPU if available. You can verify this in Settings → Device.
 
 ## ⌨️ Setting Up Your Hotkey (Important!)
 
@@ -63,8 +104,8 @@ pip install -r requirements.txt
 
 1. **Launch the GUI:**
    ```bash
-   ./start_gui.bat    # Windows
-   ./start_gui.sh     # Linux/macOS
+   ./start.bat    # Windows
+   ./start.sh     # Linux/macOS
    ```
 
 2. **Configure Your Hotkey:**
@@ -166,8 +207,8 @@ pip install dictationer
 #### Quick Start
 ```bash
 # Launch GUI with proper virtual environment
-./start_gui.bat    # Windows
-./start_gui.sh     # Linux/macOS
+./start.bat    # Windows
+./start.sh     # Linux/macOS
 
 # Or manually activate and run
 source venv/bin/activate  # Linux/macOS
@@ -257,7 +298,7 @@ We welcome contributions from the community! This project has huge potential and
    pytest
    
    # Test your feature manually
-   ./start_gui.bat  # or .sh
+   ./start.bat  # or .sh
    ```
 
 5. **📤 Submit a Pull Request**
@@ -383,8 +424,8 @@ dictationer/
 ├── 🔧 config/                    # Configuration files
 ├── 🚀 main.py                    # CLI entry point
 ├── 🖥️ gui_main.py               # GUI entry point
-├── 🏃 start_gui.bat             # Windows GUI launcher
-├── 🏃 start_gui.sh              # Linux/macOS GUI launcher
+├── 🏃 start.bat             # Windows GUI launcher
+├── 🏃 start.sh              # Linux/macOS GUI launcher
 ├── ⚙️ pyproject.toml             # Package configuration
 ├── 📦 requirements.txt           # Dependencies
 └── 📖 README.md                 # This file
@@ -598,8 +639,13 @@ make lint  # or equivalent script
 #### Virtual Environment Issues
 ```bash
 # Problem: "No module named 'faster_whisper'" or similar import errors
-# Solution: Make sure you're using the virtual environment
+# Solution: Run the setup script or ensure you're using the virtual environment
 
+# Option 1: Run setup script (recommended)
+python setup.py    # Windows
+python3 setup.py   # Linux/macOS
+
+# Option 2: Manual activation and install
 # Windows
 venv\Scripts\activate
 pip install -r requirements.txt
@@ -609,8 +655,8 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Always use the launcher scripts for GUI
-./start_gui.bat    # Windows
-./start_gui.sh     # Linux/macOS
+./start.bat    # Windows
+./start.sh     # Linux/macOS
 ```
 
 #### GPU Detection Problems
@@ -908,7 +954,7 @@ print(f'Paste success: {success}')
 If you're still experiencing issues:
 
 1. **Check log files** in the `logs/` directory for detailed error messages
-2. **Run GUI launcher scripts** (`start_gui.bat`/`start_gui.sh`) instead of calling Python directly
+2. **Run GUI launcher scripts** (`start.bat`/`start.sh`) instead of calling Python directly
 3. **Verify virtual environment** is activated and all dependencies are installed
 4. **Test components individually** using the manual testing scripts above
 5. **Check system requirements** (microphone access, admin permissions, etc.)
