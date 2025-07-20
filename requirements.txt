@@ -11,3 +11,7 @@ PySide6
 python-dotenv
 transformers
 
+# Optional: For Gemini-powered text reformatting
+google-generativeai
+pydantic
+
