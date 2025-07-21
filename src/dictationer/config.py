@@ -38,6 +38,13 @@ except ImportError:
     WHISPER_AVAILABLE = False
     WhisperModel = None
 
+try:
+    from .reformatter.gemini import ReformattingMode
+    REFORMATTER_AVAILABLE = True
+except ImportError:
+    REFORMATTER_AVAILABLE = False
+    ReformattingMode = None
+
 
 class DeviceDetector:
     """
@@ -121,7 +128,10 @@ class ConfigManager:
         "output_directory": "outputs",
         "enable_transcription": True,
         "auto_paste": True,
-        "log_level": "INFO"
+        "log_level": "INFO",
+        "enable_reformatter": False,           # Master on/off switch
+        # Mode removed - always uses grammar_fix internally
+        "reformatter_hold_duration": 2.0      # Ctrl hold time in seconds
     }
     
     def __init__(self, config_file: Optional[str] = None):

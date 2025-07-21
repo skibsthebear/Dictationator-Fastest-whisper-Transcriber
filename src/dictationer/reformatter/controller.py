@@ -43,13 +43,12 @@ except ImportError as e:
 class ReformatterController:
     """Detects when Ctrl key is held for more than 2 seconds and manages status window."""
     
-    def __init__(self, hold_duration=2.0, reformatting_mode=None):
+    def __init__(self, hold_duration=2.0):
         """
         Initialize the detector.
         
         Args:
             hold_duration (float): Time in seconds Ctrl must be held.
-            reformatting_mode: ReformattingMode enum for Gemini (defaults to GRAMMAR_FIX)
         """
         self.hold_duration = hold_duration
         self.ctrl_pressed = False
@@ -71,13 +70,13 @@ class ReformatterController:
         self.gemini_reformatter = None
         if GEMINI_AVAILABLE:
             try:
-                mode = reformatting_mode or ReformattingMode.GRAMMAR_FIX
+                # Always use GRAMMAR_FIX mode
                 self.gemini_reformatter = GeminiReformatter(
-                    mode=mode,
+                    mode=ReformattingMode.GRAMMAR_FIX,
                     show_status_callback=self._show_status_window,
                     hide_status_callback=self._hide_status_window
                 )
-                print(f"✅ Gemini reformatter initialized with mode: {mode.value}")
+                print(f"✅ Gemini reformatter initialized with grammar fix mode")
             except Exception as e:
                 print(f"⚠️  Gemini reformatter unavailable: {e}")
                 print("   Status window will still work, but no text reformatting")
@@ -247,13 +246,10 @@ class ReformatterController:
         
         print("Detector stopped.")
 
-    def set_reformatting_mode(self, mode):
-        """Change the reformatting mode."""
-        if self.gemini_reformatter and GEMINI_AVAILABLE:
-            self.gemini_reformatter.set_mode(mode)
-            print(f"🔧 Reformatting mode changed to: {mode.value}")
-        else:
-            print("⚠️  No Gemini reformatter available")
+    def set_hold_duration(self, duration):
+        """Change the hold duration for Ctrl key detection."""
+        self.hold_duration = duration
+        print(f"🔧 Hold duration changed to: {duration}s")
 
 
 def main():

@@ -17,12 +17,12 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QGridLayout, QLabel, QLineEdit, QPushButton, QComboBox, QCheckBox,
     QGroupBox, QTextEdit, QProgressBar, QMessageBox, QTabWidget,
-    QSpacerItem, QSizePolicy, QFrame, QDialog
+    QSpacerItem, QSizePolicy, QFrame, QDialog, QDoubleSpinBox
 )
 from PySide6.QtCore import Qt, QThread, QTimer, Signal, QObject, QMutex
 from PySide6.QtGui import QFont, QIcon, QPalette, QColor, QPixmap
 
-from .config import ConfigManager, DeviceDetector, ModelDetector
+from .config import ConfigManager, DeviceDetector, ModelDetector, REFORMATTER_AVAILABLE, ReformattingMode
 from .shortcut_recorder import ShortcutRecorderDialog
 
 
@@ -475,10 +475,11 @@ class SettingsWidget(QWidget):
     device preferences, model settings, and hotkey configuration.
     """
     
-    def __init__(self, config_manager: ConfigManager, program_controller: 'ProgramController' = None):
+    def __init__(self, config_manager: ConfigManager, program_controller: 'ProgramController' = None, main_gui: 'DictationerGUI' = None):
         super().__init__()
         self.config_manager = config_manager
         self.controller = program_controller
+        self.main_gui = main_gui
         self.setup_ui()
         self.load_settings()
         if self.controller:
@@ -703,6 +704,31 @@ class SettingsWidget(QWidget):
         
         layout.addWidget(audio_group)
         
+        # Reformatter Settings Group
+        reformatter_group = QGroupBox("🔧 Text Reformatter (AI)")
+        reformatter_layout = QGridLayout(reformatter_group)
+        
+        # Enable checkbox
+        reformatter_layout.addWidget(QLabel("Enable:"), 0, 0)
+        self.enable_reformatter_checkbox = QCheckBox("Enable Text Reformatter")
+        reformatter_layout.addWidget(self.enable_reformatter_checkbox, 0, 1)
+        
+        # Hold duration spinbox
+        reformatter_layout.addWidget(QLabel("Hold Duration (s):"), 1, 0)
+        self.hold_duration_spin = QDoubleSpinBox()
+        self.hold_duration_spin.setRange(1.0, 5.0)
+        self.hold_duration_spin.setSingleStep(0.1)
+        self.hold_duration_spin.setSuffix(" seconds")
+        self.hold_duration_spin.setDecimals(1)
+        reformatter_layout.addWidget(self.hold_duration_spin, 1, 1)
+        
+        # Info label
+        info_label = QLabel("💡 Hold Ctrl for the specified duration to trigger text reformatting")
+        info_label.setStyleSheet("color: #cccccc; font-size: 11px; margin-top: 5px;")
+        reformatter_layout.addWidget(info_label, 3, 0, 1, 2)
+        
+        layout.addWidget(reformatter_group)
+        
         # Buttons
         button_layout = QHBoxLayout()
         
@@ -783,8 +809,19 @@ class SettingsWidget(QWidget):
         self.hotkey_edit.setText(config.get("hotkey", "ctrl+win+shift+l"))
         self.output_dir_edit.setText(config.get("output_directory", "outputs"))
         
+        # Reformatter settings
+        self.enable_reformatter_checkbox.setChecked(config.get("enable_reformatter", False))
+        
+        
+        # Set hold duration
+        self.hold_duration_spin.setValue(config.get("reformatter_hold_duration", 2.0))
+        
         # Update GPU info button based on detection
         self.update_gpu_button()
+        
+        # Update status display with current state
+        if hasattr(self, 'main_gui'):
+            self.update_status_with_reformatter()
     
     def save_settings(self) -> None:
         """Manually save current UI settings to configuration."""
@@ -801,6 +838,25 @@ class SettingsWidget(QWidget):
         # Always enable transcription and auto-paste - that's the core functionality
         self.config_manager.set("enable_transcription", True)
         self.config_manager.set("auto_paste", True)
+        
+        # Reformatter settings
+        self.config_manager.set("enable_reformatter", self.enable_reformatter_checkbox.isChecked())
+        self.config_manager.set("reformatter_hold_duration", self.hold_duration_spin.value())
+        
+        # Update running reformatter if settings changed
+        if self.main_gui and hasattr(self.main_gui, 'reformatter_controller') and self.main_gui.reformatter_controller:
+            try:
+                # Get new settings
+                new_duration = self.hold_duration_spin.value()
+                
+                # Update hold duration
+                self.main_gui.reformatter_controller.set_hold_duration(new_duration)
+                
+                print("✅ Reformatter hold duration updated live")
+                
+            except Exception as e:
+                print(f"⚠️ Could not update running reformatter: {e}")
+                # Continue with normal save - settings still saved to file
         
         if self.config_manager.save_config():
             QMessageBox.information(self, "Settings", "Settings saved successfully!")
@@ -1030,18 +1086,41 @@ class SettingsWidget(QWidget):
     
     def on_program_started(self) -> None:
         """Handle program started signal."""
-        self.status_label.setText("Recording System Running")
-        self.status_label.setStyleSheet("font-weight: bold; color: #4CAF50; font-size: 14px; padding: 10px;")
+        self.update_status_with_reformatter()
     
     def on_program_stopped(self) -> None:
         """Handle program stopped signal."""
-        self.status_label.setText("Recording System Stopped")
-        self.status_label.setStyleSheet("font-weight: bold; color: #f44336; font-size: 14px; padding: 10px;")
+        self.update_status_with_reformatter()
     
     def on_program_error(self, error: str) -> None:
         """Handle program error signal."""
         self.status_label.setText(f"Error: {error}")
         self.status_label.setStyleSheet("font-weight: bold; color: #ff5722; font-size: 14px; padding: 10px;")
+    
+    def update_status_with_reformatter(self) -> None:
+        """Update status label to show both main system and reformatter status."""
+        # Get main system status
+        if self.controller and self.controller.is_running():
+            main_status = "Recording System: Running"
+            main_color = "#4CAF50"
+        else:
+            main_status = "Recording System: Ready"
+            main_color = "#2196F3"
+        
+        # Get reformatter status
+        if self.main_gui and self.main_gui.reformatter_controller:
+            reformatter_status = "Reformatter: Active"
+            reformatter_color = "#4CAF50"
+        else:
+            reformatter_status = "Reformatter: Inactive"
+            reformatter_color = "#757575"
+        
+        # Combine status
+        combined_status = f"{main_status} | {reformatter_status}"
+        
+        # Use main system color as primary, but show both
+        self.status_label.setText(combined_status)
+        self.status_label.setStyleSheet(f"font-weight: bold; color: {main_color}; font-size: 14px; padding: 10px;")
 
 
 class ProgramControlWidget(QWidget):
@@ -1211,6 +1290,9 @@ class DictationerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.config_manager = ConfigManager()
+        # Reformatter controller instances
+        self.reformatter_controller = None
+        self.reformatter_thread = None
         self.setup_ui()
         self.setup_logging()
     
@@ -1241,8 +1323,8 @@ class DictationerGUI(QMainWindow):
         # Control tab (create first to get controller reference)
         self.control_widget = ProgramControlWidget(self.config_manager)
         
-        # Settings tab (pass controller from control widget)
-        self.settings_widget = SettingsWidget(self.config_manager, self.control_widget.controller)
+        # Settings tab (pass controller from control widget and main GUI reference)
+        self.settings_widget = SettingsWidget(self.config_manager, self.control_widget.controller, self)
         tab_widget.addTab(self.settings_widget, "⚙️ Settings")
         
         # Add control tab second to maintain original order
@@ -1255,6 +1337,9 @@ class DictationerGUI(QMainWindow):
         
         # Apply styling
         self.apply_styling()
+        
+        # Setup reformatter service
+        self.setup_reformatter()
     
     def apply_styling(self) -> None:
         """Apply custom dark theme styling to the application."""
@@ -1402,6 +1487,99 @@ class DictationerGUI(QMainWindow):
             }
         """)
     
+    def setup_reformatter(self) -> None:
+        """Initialize and start reformatter controller if enabled."""
+        config = self.config_manager.config
+        if config.get('enable_reformatter', False):
+            self.start_reformatter_service()
+    
+    def start_reformatter_service(self) -> None:
+        """Start reformatter controller in background thread."""
+        try:
+            from dictationer.reformatter.controller import ReformatterController
+            from dictationer.reformatter.gemini import ReformattingMode
+            
+            # Get settings
+            config = self.config_manager.config
+            duration = config.get('reformatter_hold_duration', 2.0)
+            
+            # Always use grammar_fix mode
+            mode = ReformattingMode.GRAMMAR_FIX
+            
+            # Create controller
+            self.reformatter_controller = ReformatterController(
+                hold_duration=duration
+            )
+            
+            # Start in daemon thread
+            self.reformatter_thread = threading.Thread(
+                target=self.reformatter_controller.start,
+                daemon=True,
+                name="ReformatterService"
+            )
+            self.reformatter_thread.start()
+            
+            print("✅ Reformatter service started")
+            # Update status display
+            self.settings_widget.update_status_with_reformatter()
+            
+        except ImportError as e:
+            error_msg = "Could not start reformatter service - missing dependencies."
+            if "google" in str(e) or "generativeai" in str(e):
+                detailed_msg = (
+                    "The Google Generative AI package is not installed.\n\n"
+                    "To install it, run:\n"
+                    "pip install google-generativeai pydantic\n\n"
+                    "Or install from requirements.txt if available."
+                )
+            elif "pydantic" in str(e):
+                detailed_msg = (
+                    "The Pydantic package is not installed.\n\n"
+                    "To install it, run:\n"
+                    "pip install pydantic\n\n"
+                    "This package is required for AI response validation."
+                )
+            else:
+                detailed_msg = f"Import error: {e}\n\nPlease check that all reformatter dependencies are installed."
+            
+            print(f"⚠️ {error_msg}")
+            QMessageBox.warning(self, "Reformatter Service", f"{error_msg}\n\n{detailed_msg}")
+            
+        except ValueError as e:
+            if "API key" in str(e) or "GEMINI_API_KEY" in str(e):
+                error_msg = "Reformatter service requires a Gemini API key."
+                detailed_msg = (
+                    "No GEMINI_API_KEY found in environment variables.\n\n"
+                    "To fix this:\n"
+                    "1. Get a free API key from: https://aistudio.google.com/\n"
+                    "2. Create a .env file in the project root\n"
+                    "3. Add: GEMINI_API_KEY=your-api-key-here\n\n"
+                    "Or set the GEMINI_API_KEY environment variable."
+                )
+            else:
+                error_msg = "Invalid reformatter configuration."
+                detailed_msg = f"Configuration error: {e}"
+            
+            print(f"⚠️ {error_msg}")
+            QMessageBox.warning(self, "Reformatter Configuration", f"{error_msg}\n\n{detailed_msg}")
+            
+        except Exception as e:
+            error_msg = "Unexpected error starting reformatter service."
+            detailed_msg = f"Error details: {e}\n\nPlease check the console output for more information."
+            print(f"⚠️ {error_msg}: {e}")
+            QMessageBox.critical(self, "Reformatter Service Error", f"{error_msg}\n\n{detailed_msg}")
+    
+    def stop_reformatter_service(self) -> None:
+        """Stop reformatter controller."""
+        if self.reformatter_controller:
+            self.reformatter_controller.stop()
+            self.reformatter_controller = None
+        if self.reformatter_thread:
+            self.reformatter_thread = None
+        print("🛑 Reformatter service stopped")
+        # Update status display
+        self.settings_widget.update_status_with_reformatter()
+    
     def setup_logging(self) -> None:
         """Set up logging for the GUI."""
         logging.basicConfig(
@@ -1421,6 +1599,10 @@ class DictationerGUI(QMainWindow):
             
             if reply == QMessageBox.StandardButton.Yes:
                 self.control_widget.stop_program()
+        
+        # Stop reformatter service if running
+        if self.reformatter_controller:
+            self.stop_reformatter_service()
         
         event.accept()
 

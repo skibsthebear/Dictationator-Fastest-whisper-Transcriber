@@ -4,7 +4,8 @@
       "Bash(mkdir:*)",
       "WebFetch(domain:doc.qt.io)",
       "Bash(./venv/bin/pip list)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Bash(grep:*)"
     ],
     "deny": []
   }

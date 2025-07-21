@@ -12,7 +12,7 @@
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-A professional voice recording system with **PySide6 GUI**, real-time transcription, intelligent hotkey control, and automatic text pasting. Features both command-line and graphical interfaces with robust threaded architecture for seamless performance.
+A professional voice recording system with **PySide6 GUI**, real-time transcription, intelligent hotkey control, and automatic text pasting. Features both command-line and graphical interfaces with robust threaded architecture for seamless performance. Now includes **AI-powered text reformatting** with Google Gemini integration.
 
 ## ✨ Key Features
 
@@ -23,6 +23,7 @@ A professional voice recording system with **PySide6 GUI**, real-time transcript
 - **🤖 Real-time Transcription**: Accurate speech-to-text powered by HuggingFace Whisper models.
 - **📋 Intelligent Text Pasting**: Automatic clipboard management and text insertion.
 - **🖱️ Program Controls**: GUI buttons for start/stop with real-time status indicators.
+- **🔧 AI Text Reformatter**: Intelligent text enhancement with Google Gemini AI - hold Ctrl to reformat selected text with grammar fixes, tone adjustments, and more.
 
 ### ⚡ Advanced Capabilities
 - **💻 GPU/CUDA Acceleration**: Optimized performance with NVIDIA GPUs using float16 precision.
@@ -34,6 +35,9 @@ A professional voice recording system with **PySide6 GUI**, real-time transcript
 - **📊 Comprehensive Logging**: Detailed debugging and monitoring logs for issue diagnosis.
 - **🔄 Graceful Shutdown**: Clean handling of interrupts and system termination.
 - **📦 Model Management**: Download and manage any HuggingFace Whisper model directly from the GUI.
+- **🤖 AI-Powered Text Enhancement**: Background service with multiple reformatting modes (Grammar Fix, Formal Tone, Casual Tone, Bullet Points, Paragraph, Concise, Elaborate).
+- **🎛️ Reformatter Configuration**: Adjustable hold duration, mode selection, and enable/disable controls in Settings.
+- **⚡ Independent Operation**: Reformatter runs alongside main dictation system without interference.
 
 
 ## 📦 Installation
@@ -221,8 +225,39 @@ python gui_main.py
 - **📦 Model Download**: Download any HuggingFace Whisper model with progress tracking
 - **📁 Model Management**: View cached models and open models folder
 - **🎮 Program Control**: Start/Stop the main recording program with real-time status
+- **🔧 AI Text Reformatter**: Configure and control intelligent text enhancement with multiple reformatting modes
 - **📊 Live Logs**: Real-time log output with scrolling display
 
+#### 🔧 AI Text Reformatter Usage
+
+The integrated AI Text Reformatter enhances any selected text using Google Gemini AI. Perfect for improving dictated text, emails, documents, and more.
+
+**Setup:**
+1. **Get Gemini API Key**: Visit [Google AI Studio](https://aistudio.google.com/) for a free API key
+2. **Configure Environment**: Create a `.env` file in the project root:
+   ```bash
+   GEMINI_API_KEY=your-api-key-here
+   ```
+3. **Enable in Settings**: Go to Settings tab → 🔧 Text Reformatter section → Enable checkbox
+
+**Usage:**
+1. **Select text** in any application (browser, editor, email, etc.)
+2. **Hold Ctrl key** for 2 seconds (configurable 1-5 seconds)
+3. **Watch the magic** - text is automatically copied, enhanced by AI, and pasted back
+
+**Reformatting Modes:**
+- **Grammar Fix**: Corrects spelling, grammar, and punctuation
+- **Formal Tone**: Professional and business-appropriate language
+- **Casual Tone**: Friendly and conversational style
+- **Bullet Points**: Converts text into organized bullet lists
+- **Paragraph**: Restructures into well-formed paragraphs
+- **Concise**: Shortens while preserving key information
+- **Elaborate**: Expands with additional detail and explanation
+
+**Status Monitoring:**
+- Settings shows: `Recording System: Ready | Reformatter: Active`
+- Independent operation alongside voice recording
+- Real-time status updates in GUI
 
 #### Advanced Configuration
 ```bash
@@ -1085,11 +1120,26 @@ We welcome contributions! Here's how to get started:
 - 🛡️ **Thread Safety**: Robust concurrent operation handling
 - 📦 **Professional Packaging**: Proper Python package structure and installation
 
+### Version 1.1.0 (2025-07-20) - AI Text Reformatter Integration
+- 🔧 **AI Text Reformatter**: Complete integration of Google Gemini AI for intelligent text enhancement
+- 🎛️ **Reformatter Settings**: New Settings UI section with enable/disable, mode selection, and hold duration controls
+- 🤖 **Multiple Reformatting Modes**: Grammar Fix, Formal Tone, Casual Tone, Bullet Points, Paragraph, Concise, and Elaborate
+- ⚡ **Background Service**: Independent daemon thread operation alongside main dictation system
+- 🖱️ **Ctrl+Hold Trigger**: Configurable hold duration (1-5 seconds) for reformatting selected text
+- 📊 **Enhanced Status Display**: Combined status showing both Recording System and Reformatter service states
+- 🛡️ **Professional Error Handling**: Comprehensive exception handling with informative GUI dialogs for missing dependencies
+- 🔄 **Smart Lifecycle Management**: Automatic service startup/shutdown with clean thread management
+- ⚙️ **Configuration Integration**: Full persistence of reformatter settings in JSON config file
+- 📋 **Clipboard Integration**: Seamless text copying, reformatting, and pasting workflow
+- 🔒 **Hotkey Monitoring Lock**: Prevents multiple simultaneous reformatting operations
+- 🎨 **Status Window Integration**: Visual feedback during reformatting process with API-synced timing
+
 ### Upcoming in 1.2.0
 - 🧪 **Unit Testing**: Comprehensive test suite with 90% coverage
 - 🎨 **System Tray**: Background operation with system tray controls
 - 🌐 **Cross-Platform**: Enhanced macOS and Linux support
 - 🔊 **Audio Formats**: Support for MP3, FLAC, and other audio formats
+- 🔄 **Dynamic Settings Restart**: Restart reformatter service when settings change without GUI restart
 
 ---
 

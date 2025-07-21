@@ -27,6 +27,8 @@
 ### ✅ Task Completion
 - **Mark completed tasks in `TASK.md`** immediately after finishing them.
 - Add new sub-tasks or TODOs discovered during development to `TASK.md` under a “Discovered During Work” section.
+- Go phase by phase. Complete one phase from TASK.md and then report to user after checking the task. We will move onto phase 2 together.
+- You will read the file part you are making edits on before you make the edit so you know exactly where you are making the edit. This is non negotiable. Do not be lazy and have as much context and be aware when you are making the edits so you don't break anything when making the edits. You will be surgical without affecting anything else other than the parts that need to be inserted or changed. Make sure to put a check mark on task.md to notify you have finished your task.
 
 ### 📎 Style & Conventions
 - **Use Python** as the primary language.
@@ -51,6 +53,7 @@
 - **Update `README.md`** when new features are added, dependencies change, or setup steps are modified.
 - **Comment non-obvious code** and ensure everything is understandable to a mid-level developer.
 - When writing complex logic, **add an inline `# Reason:` comment** explaining the why, not just the what.
+- When asked to plan. I want you to use task.md as a scratchpad. Do research on exactly what you need to change, how you will change it, and what you need to do, and write it in @docs/TASK.md. You are basically doing research on the repo, planning, and brain-dumping on task.md, almost like a step-by-step documentation on how to add the feature request. You will add checkboxes that can be checked as each step is taken. Include file architecture, what parts of the code in those files you need to change or where you need to add in your surgical edits. You are basically creating a step by step documentation that can be followed even by someone who doesn't know how to code. Just by reading your explanation, they should be able to complete the phases and their tasks. Don't do anything else, this is just to plan out our feature request.
 
 ### 🧠 AI Behavior Rules
 - **Never assume missing context. Ask questions if uncertain.**

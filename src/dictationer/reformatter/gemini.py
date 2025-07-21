@@ -126,7 +126,7 @@ class GeminiReformatter:
         """
         prompts = {
             ReformattingMode.GRAMMAR_FIX: f"""Fix the grammar and spelling in the following text. 
-Keep the same tone and style, just correct any errors.
+Keep the same tone and style, just correct any errors. If you detect a long paragraph make sure your reponse has spacing and line breaks with best practices
 Respond with a JSON object containing the corrected text in the 'formatted_text' field.
 
 Text to fix:
