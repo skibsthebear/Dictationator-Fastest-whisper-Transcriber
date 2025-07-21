@@ -23,7 +23,7 @@ A professional voice recording system with **PySide6 GUI**, real-time transcript
 - **🤖 Real-time Transcription**: Accurate speech-to-text powered by HuggingFace Whisper models.
 - **📋 Intelligent Text Pasting**: Automatic clipboard management and text insertion.
 - **🖱️ Program Controls**: GUI buttons for start/stop with real-time status indicators.
-- **🔧 AI Text Reformatter**: Intelligent text enhancement with Google Gemini AI - hold Ctrl to reformat selected text with grammar fixes, tone adjustments, and more.
+- **🔧 AI Text Reformatter**: Intelligent text enhancement with Google Gemini AI - hold Ctrl to reformat selected text with grammar fixes.
 
 ### ⚡ Advanced Capabilities
 - **💻 GPU/CUDA Acceleration**: Optimized performance with NVIDIA GPUs using float16 precision.
@@ -35,8 +35,8 @@ A professional voice recording system with **PySide6 GUI**, real-time transcript
 - **📊 Comprehensive Logging**: Detailed debugging and monitoring logs for issue diagnosis.
 - **🔄 Graceful Shutdown**: Clean handling of interrupts and system termination.
 - **📦 Model Management**: Download and manage any HuggingFace Whisper model directly from the GUI.
-- **🤖 AI-Powered Text Enhancement**: Background service with multiple reformatting modes (Grammar Fix, Formal Tone, Casual Tone, Bullet Points, Paragraph, Concise, Elaborate).
-- **🎛️ Reformatter Configuration**: Adjustable hold duration, mode selection, and enable/disable controls in Settings.
+- **🤖 AI-Powered Text Enhancement**: Background service for grammar and spelling correction.
+- **🎛️ Reformatter Configuration**: Adjustable hold duration and enable/disable controls in Settings.
 - **⚡ Independent Operation**: Reformatter runs alongside main dictation system without interference.
 
 
@@ -225,7 +225,7 @@ python gui_main.py
 - **📦 Model Download**: Download any HuggingFace Whisper model with progress tracking
 - **📁 Model Management**: View cached models and open models folder
 - **🎮 Program Control**: Start/Stop the main recording program with real-time status
-- **🔧 AI Text Reformatter**: Configure and control intelligent text enhancement with multiple reformatting modes
+- **🔧 AI Text Reformatter**: Configure and control intelligent text enhancement
 - **📊 Live Logs**: Real-time log output with scrolling display
 
 #### 🔧 AI Text Reformatter Usage
@@ -243,16 +243,7 @@ The integrated AI Text Reformatter enhances any selected text using Google Gemin
 **Usage:**
 1. **Select text** in any application (browser, editor, email, etc.)
 2. **Hold Ctrl key** for 2 seconds (configurable 1-5 seconds)
-3. **Watch the magic** - text is automatically copied, enhanced by AI, and pasted back
-
-**Reformatting Modes:**
-- **Grammar Fix**: Corrects spelling, grammar, and punctuation
-- **Formal Tone**: Professional and business-appropriate language
-- **Casual Tone**: Friendly and conversational style
-- **Bullet Points**: Converts text into organized bullet lists
-- **Paragraph**: Restructures into well-formed paragraphs
-- **Concise**: Shortens while preserving key information
-- **Elaborate**: Expands with additional detail and explanation
+3. **Watch the magic** - text is automatically copied, corrected for grammar and spelling, and pasted back
 
 **Status Monitoring:**
 - Settings shows: `Recording System: Ready | Reformatter: Active`
@@ -1122,8 +1113,8 @@ We welcome contributions! Here's how to get started:
 
 ### Version 1.1.0 (2025-07-20) - AI Text Reformatter Integration
 - 🔧 **AI Text Reformatter**: Complete integration of Google Gemini AI for intelligent text enhancement
-- 🎛️ **Reformatter Settings**: New Settings UI section with enable/disable, mode selection, and hold duration controls
-- 🤖 **Multiple Reformatting Modes**: Grammar Fix, Formal Tone, Casual Tone, Bullet Points, Paragraph, Concise, and Elaborate
+- 🎛️ **Reformatter Settings**: New Settings UI section with enable/disable and hold duration controls
+- 🤖 **Grammar Fix Mode**: Automatically corrects spelling, grammar, and punctuation in selected text
 - ⚡ **Background Service**: Independent daemon thread operation alongside main dictation system
 - 🖱️ **Ctrl+Hold Trigger**: Configurable hold duration (1-5 seconds) for reformatting selected text
 - 📊 **Enhanced Status Display**: Combined status showing both Recording System and Reformatter service states
